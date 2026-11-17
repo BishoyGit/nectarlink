@@ -16,7 +16,13 @@ QtObject {
     }
 
     Component.onCompleted: {
-        AppController.activateRequested.connect(() => mainLoader.item.requestActivate())
+        AppController.activateRequested.connect(() => {
+            const mainWindow = mainLoader.item
+            if (!mainWindow)
+                return
+            mainWindow.visible = true
+            mainWindow.requestActivate()
+        })
         AppController.quitRequested.connect(() => Qt.quit())
         const w = islandWindowComponent.createObject(app)
         if (w)
