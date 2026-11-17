@@ -169,7 +169,7 @@ if ($translationSources.Count -gt 0) {
 # QtQuick.Dialogs brings every Controls style along. The file picker is
 # Windows' own dialog; only Basic, Windows and FluentWinUI3 (the default
 # style on Windows) can ever be loaded, so the rest is left out.
-foreach ($style in 'Fusion', 'Imagine', 'Material', 'Universal') {
+foreach ($style in 'Imagine', 'Material', 'Universal') {
     Remove-Item (Join-Path $stage "Qt6QuickControls2$style*.dll") -Force
     Remove-Item (Join-Path $stage "qml\QtQuick\Controls\$style") -Recurse -Force -ErrorAction SilentlyContinue
 }
