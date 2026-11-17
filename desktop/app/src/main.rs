@@ -678,6 +678,7 @@ fn main() -> ExitCode {
         });
     }
     let code = if bridge::app::is_quit_requested() { 0 } else { app.as_mut().map_or(1, |app| app.exec()) };
+    let visible_windows = if options.ui_check { bridge::native::ffi::visible_top_level_window_count() } else { 0 };
 
     tracing::info!(code, "shutting down");
     // QML first (it holds references into Qt), then the core.
@@ -698,7 +699,11 @@ fn main() -> ExitCode {
             eprintln!("nectarlink: --ui-check: {problems} QML warning(s) or error(s), see above");
             return ExitCode::FAILURE;
         }
-        eprintln!("nectarlink: --ui-check: no QML warnings");
+        if visible_windows == 0 {
+            eprintln!("nectarlink: --ui-check: no visible top-level window was created");
+            return ExitCode::FAILURE;
+        }
+        eprintln!("nectarlink: --ui-check: no QML warnings; {visible_windows} visible window(s)");
     }
     ExitCode::from(u8::try_from(code).unwrap_or(1))
 }

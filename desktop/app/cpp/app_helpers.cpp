@@ -188,6 +188,16 @@ int32_t qml_problem_count()
     return qmlProblems().load();
 }
 
+int32_t visible_top_level_window_count()
+{
+    int32_t count = 0;
+    for (QWindow *window : QGuiApplication::topLevelWindows()) {
+        if (window && window->isVisible())
+            ++count;
+    }
+    return count;
+}
+
 void prepare_qt_without_log()
 {
     // Windows get an alpha channel so the Mica backdrop can show through, and
