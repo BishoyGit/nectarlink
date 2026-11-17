@@ -44,8 +44,12 @@ jobs:
         shell: pwsh
         run: |
           $data = Join-Path $env:RUNNER_TEMP ('nectardrop-ui-check-' + [guid]::NewGuid().ToString('N'))
-          & .\target\release\nectarlink-desktop.exe --ui-check --data-dir $data
-          if ($LASTEXITCODE -ne 0) { throw "NectarDrop UI check failed: exit code $LASTEXITCODE" }
+          $stderr = Join-Path $env:RUNNER_TEMP 'nectardrop-ui-check.stderr.log'
+          $exe = (Resolve-Path '.\target\release\nectarlink-desktop.exe').Path
+          $arguments = '--ui-check --data-dir "' + $data + '"'
+          $process = Start-Process -FilePath $exe -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru -RedirectStandardError $stderr
+          if (Test-Path $stderr) { Get-Content $stderr }
+          if ($process.ExitCode -ne 0) { throw "NectarDrop UI check failed: exit code $($process.ExitCode)" }
       - uses: actions/upload-artifact@v7
         with:
           name: nectardrop-windows-x64
