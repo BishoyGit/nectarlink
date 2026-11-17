@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
-    <string name="app_name">NectarLink</string>
+    <string name="app_name">NectarDrop</string>
 
     <!-- Pairing -->
     <string name="pair_title">PCとペアリングする</string>
@@ -163,7 +163,7 @@
     <string name="transfer_pause">一時停止</string>
     <string name="transfer_resume">再開</string>
     <string name="transfer_paused_progress">一時停止中 · %1$s / %2$s</string>
-    <string name="transfer_received_from">%1$s から · Download/Nectarlink 内</string>
+    <string name="transfer_received_from">%1$s から · Download/NectarDrop 内</string>
     <string name="transfer_sent_to">%1$s に送信済み</string>
     <string name="transfer_cancelled">キャンセル済み</string>
     <string name="transfer_denied">%1$s はこのスマートフォンからのファイルを受け付けません。</string>
@@ -1080,7 +1080,7 @@
     <string name="guide_files_pc_1">PCのNectarLinkウィンドウまたは画面上部の Nectar Island にファイルをドラッグしてください。</string>
     <string name="guide_files_opt_1">ファイルを送信 / フォルダを送信：個別のファイルやフォルダ全体を転送します。</string>
     <string name="guide_files_opt_2">一時停止 / 再開：中断された転送を、完了済みのバイトを再送信することなく再開します。</string>
-    <string name="guide_files_privacy">ファイルはQUIC TLS 1.3とBLAKE3整合性検証を用いて、Download/Nectarlinkへストリーミングされます。</string>
+    <string name="guide_files_privacy">ファイルはQUIC TLS 1.3とBLAKE3整合性検証を用いて、Download/NectarDropへストリーミングされます。</string>
     <string name="guide_files_limits">1回あたり最大5,000ファイル。</string>
 
     <!-- 8. Send queue -->

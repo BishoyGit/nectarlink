@@ -242,11 +242,8 @@ Window {
 
     readonly property bool hasMediaCandidate: mediaPlaying && mediaDeviceId !== "local" && mediaTitle.length > 0
     readonly property string mode: {
-        if (Preferences.nectarIslandCalls && PhoneCall.active) return "call"
-        if (Preferences.nectarIslandTransfers && (TransferList.active > 0 || transferJustFinished)) return "transfer"
-        if (Preferences.nectarIslandMedia && hasMediaCandidate) return "media"
-        if (Preferences.nectarIslandNotifications && notificationToastActive && NotificationList.count > 0) return "notification"
-        if (Preferences.nectarIslandTransfers && TransferList.waitingCount > 0) return "waiting"
+        if (TransferList.active > 0 || transferJustFinished) return "transfer"
+        if (TransferList.waitingCount > 0) return "waiting"
         return "idle"
     }
 
@@ -273,7 +270,7 @@ Window {
         interval: 10 * 60 * 1000
         onTriggered: islandWin.keptForMinutes = false
     }
-    visible: Preferences.nectarIsland && (hasActivity || keptForMinutes)
+    visible: hasActivity || keptForMinutes
 
     onVisibleChanged: {
         if (!visible) {
@@ -438,7 +435,7 @@ Window {
 
         Repeater {
             id: transferRepeater
-            model: Preferences.nectarIsland ? TransferList : null
+            model: TransferList
             onItemAdded: islandWin.recomputeTransfer()
             onItemRemoved: islandWin.recomputeTransfer()
             delegate: Item {

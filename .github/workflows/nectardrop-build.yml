@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: NectarDrop build
+
+on:
+  push:
+    branches:
+      - copilot/nectardrop-actions-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  QT_VERSION: "6.12.0"
+
+jobs:
+  windows:
+    name: Windows installer (x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: nectardrop-windows-x64
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          cache: true
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git
+      - name: Install NSIS
+        shell: pwsh
+        run: ./scripts/install-nsis.ps1
+      - name: Build the installer
+        shell: pwsh
+        run: ./scripts/package.ps1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nectardrop-windows-x64
+          path: target/package/*-setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  android:
+    name: Android APK (arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain and Android target
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: nectardrop-android-arm64
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: "16111833"
+          packages: "platforms;android-37.0 ndk;30.0.16248370 build-tools;37.0.0"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build the APK
+        working-directory: android
+        run: ./gradlew --no-daemon assembleRelease -Pnectarlink.abis=arm64-v8a
+      - name: Verify the APK
+        run: "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify android/app/build/outputs/apk/release/app-release.apk
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nectardrop-android-arm64
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7

@@ -14,23 +14,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Brings the connection back after the phone restarts or NectarLink is
- * updated, without waiting for the app to be opened. Starting the core starts
- * the connection service when a PC is paired (Core.start). After an update,
- * the new version also says so in a notification.
+ * Brings the connection back after the phone restarts or the app is updated.
+ * Starting the core starts the connection service when a PC is paired.
  */
 class StartupReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val updated = when (intent.action) {
-            Intent.ACTION_MY_PACKAGE_REPLACED -> true
-            Intent.ACTION_BOOT_COMPLETED -> false
+        when (intent.action) {
+            Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_BOOT_COMPLETED -> Unit
             else -> return
         }
         val app = context.applicationContext as NectarlinkApplication
-        if (!Preferences.isBackgroundServiceEnabled(context)) {
-            if (updated) app.updater.onUpdated()
-            return
-        }
+        if (!Preferences.isBackgroundServiceEnabled(context)) return
         val pending = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
@@ -38,7 +32,6 @@ class StartupReceiver : BroadcastReceiver() {
                 // Kept alive until the core is up, so the service starts inside the
                 // window Android allows after these broadcasts.
                 withTimeoutOrNull(START_WAIT_MS) { app.core.state.first { it.status !is CoreStatus.Starting } }
-                if (updated) app.updater.onUpdated()
             } finally {
                 pending.finish()
             }

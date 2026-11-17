@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
-    <string name="app_name">NectarLink</string>
+    <string name="app_name">NectarDrop</string>
     <string name="pair_title">Связать с ПК</string>
     <string name="pair_show_title">Связать телефон или планшет</string>
     <string name="pair_show_hint">На другом телефоне или планшете откройте NectarLink, нажмите «Связать» и отсканируйте этот код.</string>
@@ -160,7 +160,7 @@
     <string name="transfer_pause">Пауза</string>
     <string name="transfer_resume">Продолжить</string>
     <string name="transfer_paused_progress">На паузе · %1$s / %2$s</string>
-    <string name="transfer_received_from">С %1$s · в Download/Nectarlink</string>
+    <string name="transfer_received_from">С %1$s · в Download/NectarDrop</string>
     <string name="transfer_sent_to">Отправлено на %1$s</string>
     <string name="transfer_cancelled">Отменено</string>
     <string name="transfer_denied">%1$s не принимает файлы с этого телефона.</string>
@@ -1003,7 +1003,7 @@
     <string name="guide_files_pc_1">Перетащите файлы в окно NectarLink или на остров у верхнего края экрана ПК.</string>
     <string name="guide_files_opt_1">Отправить файлы / Отправить папку: передаёт отдельные файлы или целые папки.</string>
     <string name="guide_files_opt_2">Пауза / Продолжить: продолжает прерванные передачи без повторной отправки уже переданных данных.</string>
-    <string name="guide_files_privacy">Файлы передаются по QUIC с TLS 1.3, проверяются BLAKE3 и сохраняются в Download/Nectarlink.</string>
+    <string name="guide_files_privacy">Файлы передаются по QUIC с TLS 1.3, проверяются BLAKE3 и сохраняются в Download/NectarDrop.</string>
     <string name="guide_files_limits">До 5 000 файлов за раз.</string>
     <string name="guide_queue_title">Очередь отправки</string>
     <string name="guide_queue_summary">Ставьте в очередь файлы, ссылки, фрагменты и записи, пока ПК не в сети, и они доставятся при переподключении.</string>

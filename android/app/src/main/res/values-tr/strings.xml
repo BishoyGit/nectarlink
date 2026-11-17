@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
-    <string name="app_name">NectarLink</string>
+    <string name="app_name">NectarDrop</string>
 
     <!-- Pairing -->
     <string name="pair_title">Bilgisayarla eşleştir</string>
@@ -164,7 +164,7 @@
     <string name="transfer_pause">Duraklat</string>
     <string name="transfer_resume">Sürdür</string>
     <string name="transfer_paused_progress">Duraklatıldı · %1$s / %2$s</string>
-    <string name="transfer_received_from">Kaynak: %1$s · Download/Nectarlink klasöründe</string>
+    <string name="transfer_received_from">Kaynak: %1$s · Download/NectarDrop klasöründe</string>
     <string name="transfer_sent_to">%1$s cihazına gönderildi</string>
     <string name="transfer_cancelled">İptal edildi</string>
     <string name="transfer_denied">%1$s bu telefondan dosya kabul etmiyor.</string>
@@ -1086,7 +1086,7 @@
     <string name="guide_files_pc_1">Dosyaları bilgisayarınızdaki NectarLink penceresine veya ekranın üst kenarındaki Island\'a sürükleyin.</string>
     <string name="guide_files_opt_1">Dosya gönder / Klasör gönder: Tek tek dosyaları veya klasör ağaçlarının tamamını aktarır.</string>
     <string name="guide_files_opt_2">Duraklat / Sürdür: Yarıda kalan aktarımları, tamamlanmış baytları yeniden göndermeden sürdürür.</string>
-    <string name="guide_files_privacy">Dosyalar QUIC TLS 1.3 üzerinden BLAKE3 bütünlük doğrulamasıyla Download/Nectarlink klasörüne aktarılır.</string>
+    <string name="guide_files_privacy">Dosyalar QUIC TLS 1.3 üzerinden BLAKE3 bütünlük doğrulamasıyla Download/NectarDrop klasörüne aktarılır.</string>
     <string name="guide_files_limits">Tek seferde en fazla 5.000 dosya.</string>
 
     <!-- 8. Send queue -->

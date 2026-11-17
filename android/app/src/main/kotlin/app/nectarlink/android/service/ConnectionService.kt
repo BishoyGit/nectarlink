@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.nectarlink.android.service
 
-import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -22,17 +21,11 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import app.nectarlink.android.NectarlinkApplication
 import app.nectarlink.android.R
-import app.nectarlink.android.banking.BankingPause
-import app.nectarlink.android.banking.PauseDecider
-import app.nectarlink.android.banking.awaitScreenWake
-import app.nectarlink.android.banking.bankingPollWaitMs
 import app.nectarlink.android.clipboard.SendActivity
 import app.nectarlink.android.core.CoreState
 import app.nectarlink.android.ui.MainActivity
 import app.nectarlink.android.ui.Preferences
-import app.nectarlink.android.ui.RingActivity
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -55,11 +48,6 @@ class ConnectionService : LifecycleService() {
         super.onCreate()
         createChannels(this)
         app.nectarlink.android.files.TransferNotifications.createChannels(this)
-        app.nectarlink.android.media.PcMedia.createChannel(this)
-        app.nectarlink.android.links.LinkNotifications.createChannel(this)
-        app.nectarlink.android.notifications.TaskNotifications.createChannels(this)
-        app.nectarlink.android.webcam.WebcamService.createChannel(this)
-        app.nectarlink.android.webcam.WebcamRequests.createChannel(this)
         val core = (application as NectarlinkApplication).core
         if (!startInForeground(core.state.value)) {
             stopSelf()
@@ -83,52 +71,6 @@ class ConnectionService : LifecycleService() {
                     }
                 }
         }
-        // Updates while the app is in the background (they install by themselves when
-        // allowed). AppUpdater checks at most once a day, so waking now and then is cheap.
-        lifecycleScope.launch {
-            val updater = (application as NectarlinkApplication).updater
-            while (true) {
-                runCatching { updater.updateIfDue() }.onFailure { Log.i(TAG, "update check failed", it) }
-                delay(UPDATE_WAKE_MS)
-            }
-        }
-        // Pause for banking apps: follow the app in front while it's set up.
-        // Screen returns end the idle wait and start a fresh resume countdown.
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.Default) {
-            val context = applicationContext
-            val power = getSystemService(PowerManager::class.java)
-            var decider = PauseDecider()
-            var foreground: BankingPause.Foreground? = null
-            while (true) {
-                if (!BankingPause.isReady(context)) {
-                    foreground = null
-                    decider = PauseDecider()
-                    delay(BANKING_IDLE_MS)
-                    continue
-                }
-                val follow = foreground ?: BankingPause.Foreground(context).also { foreground = it }
-                val pkg = follow.poll()
-                if (screenWake.tryReceive().isSuccess || pkg == null) decider = PauseDecider()
-                when (decider.decide(pkg, BankingPause.apps(context), BankingPause.isPaused(context), System.currentTimeMillis())) {
-                    PauseDecider.Action.PAUSE -> BankingPause.pause(context)
-                    PauseDecider.Action.RESUME -> BankingPause.resume(context)
-                    null -> {}
-                }
-                val wait = bankingPollWaitMs(power?.isInteractive != false, screenWakeRegistered, BANKING_POLL_MS, BANKING_IDLE_MS)
-                if (awaitScreenWake(wait, screenWake)) decider = PauseDecider()
-            }
-        }
-        lifecycleScope.launch {
-            core.state.map { it.ringingPeer to it.ringingFrom }.distinctUntilChanged().collect { (peer, from) ->
-                val manager = getSystemService(NotificationManager::class.java)
-                if (peer != null) {
-                    manager.notify(RINGING_ID, ringingNotification(from.orEmpty()))
-                    if (!getSystemService(KeyguardManager::class.java).isKeyguardLocked) showRingScreen()
-                } else {
-                    manager.cancel(RINGING_ID)
-                }
-            }
-        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -140,9 +82,6 @@ class ConnectionService : LifecycleService() {
             (application as? NectarlinkApplication)?.onBackgroundServiceDisabled()
             return START_NOT_STICKY
         }
-        if (intent?.action == ACTION_STOP_RINGING) {
-            (application as NectarlinkApplication).core.stopRinging()
-        }
         return START_STICKY
     }
 
@@ -151,7 +90,6 @@ class ConnectionService : LifecycleService() {
         setDiscoveryLock(false)
         getSystemService(NotificationManager::class.java)?.let {
             it.cancel(ONGOING_ID)
-            it.cancel(RINGING_ID)
         }
         super.onDestroy()
     }
@@ -184,7 +122,6 @@ class ConnectionService : LifecycleService() {
                 screenWake.trySend(Unit)
                 if (action == Intent.ACTION_USER_PRESENT) {
                     val core = (application as NectarlinkApplication).core
-                    if (core.state.value.ringingPeer != null) showRingScreen()
                     core.reconnectIfOffline()
                 }
             }
@@ -250,13 +187,9 @@ class ConnectionService : LifecycleService() {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         if (status.connected.isNotEmpty()) {
-            val sendClip = PendingIntent.getActivity(
-                this, 2, SendActivity.sendClipboardIntent(this), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
             val sendFiles = PendingIntent.getActivity(
                 this, 3, SendActivity.sendFilesIntent(this), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-            builder.addAction(0, getString(R.string.action_send_clipboard), sendClip)
             builder.addAction(0, getString(R.string.action_send_files), sendFiles)
         } else {
             // Waiting for a PC is when turning this off makes sense. While one is
@@ -270,49 +203,14 @@ class ConnectionService : LifecycleService() {
         return builder.build()
     }
 
-    private fun showRingScreen() {
-        // Android can restrict this background launch. The alarm notification also opens the screen.
-        runCatching { startActivity(RingActivity.intent(this)) }
-    }
-
-    private fun ringingNotification(from: String): Notification {
-        val open = PendingIntent.getActivity(
-            this, RINGING_ID, RingActivity.intent(this), PendingIntent.FLAG_IMMUTABLE,
-        )
-        val stop = PendingIntent.getService(
-            this, 1, Intent(this, ConnectionService::class.java).setAction(ACTION_STOP_RINGING),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        val title = if (from.isEmpty()) getString(R.string.ringing_title_unknown) else getString(R.string.ringing_title, from)
-        return NotificationCompat.Builder(this, CHANNEL_RINGING)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(title)
-            .setContentIntent(open)
-            .setFullScreenIntent(open, true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setOngoing(true)
-            .addAction(0, getString(R.string.action_stop_ringing), stop)
-            .setDeleteIntent(stop)
-            .build()
-    }
-
     private fun openApp(): PendingIntent = PendingIntent.getActivity(
         this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
     )
 
     companion object {
         private const val TAG = "Nectarlink"
-        private const val UPDATE_WAKE_MS = 6L * 3600 * 1000
-        /** How often to look at the app in front while the screen is on and Pause for banking apps is set up. */
-        private const val BANKING_POLL_MS = 800L
-        /** Screen off, or Pause for banking apps is not set up. */
-        private const val BANKING_IDLE_MS = 15_000L
         private const val ONGOING_ID = 1
-        private const val RINGING_ID = 2
         private const val CHANNEL_CONNECTION = "connection"
-        private const val CHANNEL_RINGING = "ringing"
-        private const val ACTION_STOP_RINGING = "app.nectarlink.action.STOP_RINGING"
         internal const val ACTION_STOP_SERVICE = "app.nectarlink.action.STOP_SERVICE"
 
         /** Starts the service when allowed by Android's foreground-service rules. */
@@ -337,11 +235,6 @@ class ConnectionService : LifecycleService() {
                 NotificationChannel(
                     CHANNEL_CONNECTION, context.getString(R.string.channel_connection), NotificationManager.IMPORTANCE_LOW,
                 ).apply { setShowBadge(false) },
-            )
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    CHANNEL_RINGING, context.getString(R.string.channel_ringing), NotificationManager.IMPORTANCE_HIGH,
-                ).apply { setSound(null, null) },
             )
         }
     }

@@ -11,17 +11,14 @@ use std::{
 
 use cxx_qt_build::{CxxQtBuilder, QmlFile, QmlModule};
 
-// The mark the app draws at runtime, rendered here for the .exe's icon.
+// The app's file-transfer mark, rendered for the .exe's icon.
 #[path = "src/mark.rs"]
 mod mark;
 
 const QML: &[&str] = &[
     "qml/App.qml",
     "qml/IslandWindow.qml",
-    "qml/LaserOverlay.qml",
-    "qml/MainWindow.qml",
-    "qml/MirrorWindow.qml",
-    "qml/ShelfWindow.qml",
+    "qml/TransferOnlyWindow.qml",
     "qml/components/AppsSheet.qml",
     "qml/components/Avatar.qml",
     "qml/components/Button.qml",
@@ -59,18 +56,7 @@ const QML: &[&str] = &[
     "qml/components/WindowPlacement.qml",
     "qml/components/SwitchBar.qml",
     "qml/components/Txt.qml",
-    "qml/pages/AppsPage.qml",
-    "qml/pages/CallsPage.qml",
-    "qml/pages/DeckPage.qml",
-    "qml/pages/FeaturesGuidePage.qml",
-    "qml/pages/HomePage.qml",
-    "qml/pages/MessagesPage.qml",
     "qml/pages/PairingPanel.qml",
-    "qml/pages/PhotosPage.qml",
-    "qml/pages/SettingsPage.qml",
-    "qml/pages/TimelinePage.qml",
-    "qml/pages/WalkthroughPage.qml",
-    "qml/pages/WelcomePage.qml",
     "qml/components/HiveBackdrop.qml",
     "qml/setup/SadBee.qml",
     "qml/setup/SetupButton.qml",
@@ -222,12 +208,12 @@ BEGIN
     BLOCK "040904B0"
     BEGIN
       VALUE "CompanyName", "The NectarLink contributors"
-      VALUE "FileDescription", "NectarLink"
+      VALUE "FileDescription", "NectarDrop"
       VALUE "FileVersion", "{version}"
       VALUE "InternalName", "nectarlink-desktop"
       VALUE "LegalCopyright", "GPL-3.0-or-later"
       VALUE "OriginalFilename", "nectarlink-desktop.exe"
-      VALUE "ProductName", "NectarLink"
+      VALUE "ProductName", "NectarDrop"
       VALUE "ProductVersion", "{version}"
     END
   END

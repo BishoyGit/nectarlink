@@ -320,8 +320,6 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
             if (lastSignal.wifiBars != null || _state.value.awayMode) {
                 node?.networkChanged()
             }
-            // A new Wi-Fi network turns wireless debugging off; Elevated turns it back on.
-            if (!Elevated.running && lastSignal.wifiBars != null) Elevated.onNetworkChanged()
         }
     }
 
@@ -428,14 +426,14 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
                 runScope = currentRunScope
                 val job = currentRunScope.launch(Dispatchers.IO) {
             initLogging(if (BuildConfig.DEBUG) "debug,iroh=info,swarm_discovery=error" else "info,iroh=warn,swarm_discovery=error")
-            val initialAwayMode = app.nectarlink.android.ui.Preferences.isAwayModeEnabled(context)
             val options = NodeOptions(
                 dataDir = context.noBackupFilesDir.resolve("core").absolutePath,
                 device = deviceInfo(context),
                 appVersion = BuildConfig.VERSION_NAME,
                 power = PowerLevel.BASIC,
-                awayMode = initialAwayMode,
+                awayMode = false,
                 downloadsDir = context.cacheDir.resolve("received").absolutePath,
+                capabilities = PhoneStorage.capabilities(context),
                 usbPort = 53319u.toUShort(),
             )
             val started = try {
@@ -456,49 +454,18 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
             runCatching { started.setLocalNetwork(network.hasLocalNetwork()) }
             val devices = runCatching { started.pairedDevices() }.getOrDefault(emptyList())
             val pcToggles = perPcToggles(started, devices.map { it.id })
-            val clipHistEnabled = runCatching { started.clipboardHistoryEnabled() }.getOrDefault(true)
-            val clipHist = if (clipHistEnabled) {
-                runCatching { started.clipboardHistory(null) }.getOrDefault(emptyList())
-            } else {
-                emptyList()
-            }
-            val retention = runCatching { started.timelineRetention() }.getOrNull()
-            val tlPage = runCatching { started.timelinePage(null, null, null, 0u, 100u) }.getOrNull()
-            val lsEnabled = runCatching { started.localsendEnabled() }.getOrDefault(false)
-            val lsPeers = if (lsEnabled) {
-                runCatching { started.localsendPeers() }.getOrDefault(emptyList())
-            } else {
-                emptyList()
-            }
             val initialQueue = runCatching { started.sendQueue(null).map { it.toUi() } }.getOrDefault(emptyList())
-            updateLocalSendMulticast(lsEnabled)
             pruneOldTempCaches()
             _state.update {
                 it.withDevices(devices, pcToggles.storageAllowed, pcToggles.micOff).copy(
                     sendQueue = initialQueue,
-                    clipboardHistoryEnabled = clipHistEnabled,
-                    clipboardHistory = clipHist,
-                    timeline = tlPage?.items ?: emptyList(),
-                    timelineTotal = tlPage?.total ?: 0u,
-                    timelineHasMore = tlPage?.hasMore ?: false,
-                    timelineRetentionDays = retention?.maxDays ?: 90u,
-                    localsendEnabled = lsEnabled,
-                    awayMode = initialAwayMode,
-                    localsendPeers = lsPeers,
                 )
             }
             if (devices.isNotEmpty()) ConnectionService.start(context)
-            val companionAssociated = PcCompanion.isAssociated(context)
-            if (companionAssociated && devices.isNotEmpty()) {
-                PcCompanion.startObservingPresence(context)
-            }
             _state.update {
                 it.copy(status = CoreStatus.Ready(started.deviceId()))
             }
-            NotificationListener.instance?.refreshActive()
-            refreshDataRetention()
             app.nectarlink.android.clipboard.DirectShareTargets.sync(context, _state.value.devices)
-            app.nectarlink.android.widget.Widgets.refreshAll(context, _state.value)
             currentRunScope.launch(Dispatchers.IO) {
                 // A rename in Android's settings reaches the PCs right away,
                 // not at the next start (#87).
@@ -528,93 +495,19 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
                     .collect {
                         val s = _state.value
                         app.nectarlink.android.clipboard.DirectShareTargets.sync(context, s.devices)
-                        app.nectarlink.android.widget.Widgets.refreshAll(context, s)
                     }
             }
-            currentRunScope.launch(Dispatchers.IO) {
-                // The widgets also show a PC's battery, the last clip and the last file a PC sent.
-                _state
-                    .map { s ->
-                        listOf(
-                            s.devices.map { d -> listOf(d.battery?.level, d.battery?.charging) },
-                            s.clipboardHistory.filter { it.incoming }.maxByOrNull { it.timestamp }?.id,
-                            s.timeline.firstOrNull { it.incoming }?.id,
-                        )
-                    }
-                    .distinctUntilChanged()
-                    .collect { app.nectarlink.android.widget.Widgets.refreshAll(context, _state.value) }
-            }
-            currentRunScope.launch(Dispatchers.Default) {
-                // The volume buttons reach a PC whose volume this phone may set.
-                _state
-                    .map { s ->
-                        s.devices
-                            .filter { it.online && it.has("media.pc_audio") }
-                            .mapNotNull { d -> d.deckState?.let { d.id to PcMedia.PcLevel(it.volume.toInt(), it.muted) } }
-                            .toMap()
-                    }
-                    .distinctUntilChanged()
-                    .collect { pcMedia.levels(it) }
-            }
-            currentRunScope.launch(Dispatchers.IO) {
-                var first = true
-                _state
-                    .map { s ->
-                        s.devices.map { d -> listOf(d.id, d.online, d.deckState?.volume, d.deckState?.muted) }
-                    }
-                    .distinctUntilChanged()
-                    .collect {
-                        if (!first) delay(120L)
-                        first = false
-                        app.nectarlink.android.widget.Widgets.refreshAll(context, _state.value)
-                    }
-            }
-            val initialInputEnabled = InputService.running || InputService.enabled(context)
-            val initialElevated = Elevated.running
-            val initialInputAccess = InputService.running || initialElevated || initialInputEnabled
             _state.update {
                 it.copy(
-                    companionAssociated = companionAssociated,
-                    photoAccess = RecentPhotos.hasAccess(context),
-                    photoPartialAccess = RecentPhotos.hasPartialAccess(context),
-                    callAccess = PhoneCalls.hasAll(context),
-                    contactsAccess = PhoneContacts.canRead(context),
-                    smsAccess = PhoneSms.hasAll(context),
-                    inputAccess = initialInputAccess,
-                    elevated = initialElevated,
-                    dndAccess = PhoneToggles.hasDndAccess(context),
-                    writeSettingsAccess = PhoneToggles.hasWriteSettings(context),
                     storageAllFilesAccess = PhoneStorage.hasAllFilesAccess(context),
                     storageSafFolders = PhoneStorage.safFolders(context).map { f -> f.name },
                 )
             }
-            started.updatePower(powerLevel(), capabilities(NotificationListener.hasAccess(context)))
-            // Elevated, when set up and wireless debugging is on.
-            currentRunScope.launch { Elevated.start() }
+            started.updatePower(PowerLevel.BASIC, capabilities(false))
             currentRunScope.launch(Dispatchers.Main) {
                 // Allow first Compose frame to draw before registering BroadcastReceivers and ContentObservers on Main.
                 delay(48L)
-                battery.start()
-                accent.start()
                 network.start()
-                if (NotificationListener.hasAccess(context)) phoneMedia.start()
-                if (PhoneCalls.canFollow(context) || PhoneCalls.canReadLog(context)) calls.start()
-                if (PhoneContacts.canRead(context)) contacts.start()
-                if (PhoneSms.canRead(context)) sms.start()
-                _state
-                    .map { s -> s.devices.any { it.online } to s.photoAccess }
-                    .distinctUntilChanged()
-                    .collect { (anyOnline, hasPhotoAccess) ->
-                        if (anyOnline) {
-                            signal.start()
-                            toggles.start()
-                            if (hasPhotoAccess) photos.start() else photos.stop()
-                        } else {
-                            signal.stop()
-                            toggles.stop()
-                            photos.stop()
-                        }
-                    }
             }
             currentRunScope.launch {
                 for (op in notificationOps) {
@@ -663,21 +556,8 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
 
                 activeNode?.let { shutdownAndCloseNode(it) }
                 _state.value.devices.forEach { pcMedia.update(it.id, "", emptyList()) }
-                runCatching { Elevated.stop() }
-
                 withContext(Dispatchers.Main) {
-                    battery.stop()
-                    accent.stop()
                     network.stop()
-                    calls.stop()
-                    contacts.stop()
-                    sms.stop()
-                    signal.stop()
-                    toggles.stop()
-                    photos.stop()
-                    phoneMedia.stop()
-                    pcSpeakerPlayer.stop()
-                    ringer.stopRinging()
                 }
 
                 lastReportedBattery = null
@@ -687,7 +567,6 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
                 wakeTimers.clear()
 
                 _state.update { it.withDevicesOffline().copy(status = CoreStatus.Starting) }
-                app.nectarlink.android.widget.Widgets.refreshAll(context, _state.value)
             }
         }
     }
@@ -936,9 +815,7 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
                 }
             }
             is Event.DeviceAdded -> ConnectionService.start(context)
-            // A PC heard of a new build: the updater checks the feed if it's for this phone.
-            is Event.UpdateHint -> (context.applicationContext as? app.nectarlink.android.NectarlinkApplication)
-                ?.updater?.onHint(event.channel, event.version)
+            is Event.UpdateHint -> Unit
             is Event.DeviceRemoved -> {
                 wakeTimers.remove(event.id)?.cancel()
                 // Paired again later, it asks again until chosen again.
@@ -2011,50 +1888,8 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
     }
 
     /** What this phone offers PCs (docs/protocol/capabilities.md). */
-    private fun capabilities(notificationAccess: Boolean): List<String> =
-        CLIPBOARD_CAPABILITIES +
-            // Play on phone: shows a PC's playback, streamed from the PC.
-            listOf("media.watch") +
-            // Shows a paired phone's or tablet's notifications.
-            listOf("notify.show") +
-            // Phone as microphone: asks for the permission when a PC first wants it.
-            (if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)) listOf("mic.stream") else emptyList()) +
-            toggles.capabilities() +
-            (if (notificationAccess) NOTIFICATION_CAPABILITIES + MEDIA_CAPABILITIES else emptyList()) +
-            (if (notificationAccess && NotificationListener.canReadSensitive(context)) listOf("notify.sensitive") else emptyList()) +
-            (if (_state.value.photoAccess) PHOTO_CAPABILITIES else emptyList()) +
-            (if (PhoneCalls.canFollow(context)) listOf("call.state") else emptyList()) +
-            (if (PhoneCalls.canControl(context)) listOf("call.control") else emptyList()) +
-            (if (PhoneCalls.canControl(context) && CallCompanion.allowed(context)) listOf("call.incall") else emptyList()) +
-            // A call's sound on the PC: only where the Elevated helper found it can reach it
-            // (Android 13+ and the phone's audio HAL), so PCs show no button that can't work.
-            (if (PhoneCalls.canControl(context) && Elevated.running && Elevated.callAudioSupported) {
-                listOf("call.audio")
-            } else {
-                emptyList()
-            }) +
-            (if (PhoneCalls.canReadLog(context)) listOf("call.log") else emptyList()) +
-            (if (PhoneCalls.canDial(context)) listOf("call.dial") else emptyList()) +
-            (if (PhoneCalls.canListSims(context)) listOf("call.sims") else emptyList()) +
-            (if (PhoneContacts.canRead(context)) listOf("contacts.read") else emptyList()) +
-            (if (PhoneSms.canRead(context)) listOf("sms.read") else emptyList()) +
-            (if (PhoneSms.canSend(context)) listOf("sms.send") else emptyList()) +
-            PhoneStorage.capabilities(context) +
-            (if (WebcamService.hasPermission(context)) listOf("camera.stream") else emptyList()) +
-            (if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) listOf("camera.capture") else emptyList()) +
-            (if (InputService.running || Elevated.running) listOf("mirror.input") else emptyList()) +
-            (if (Elevated.running) listOf("clip.read.auto") else emptyList()) +
-            // Apps in windows of their own run on displays the Elevated helper makes.
-            (if (Elevated.running && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) listOf("mirror.virtual_display") else emptyList()) +
-            // A PC can uninstall an app through Elevated (D349).
-            (if (Elevated.running) listOf("mirror.apps.uninstall") else emptyList()) +
-            // The PC's mouse over the edge of its screen, with a pointer of the phone's own (#107).
-            (if (Elevated.running) listOf("mirror.pointer") else emptyList()) +
-            // Asked for when a PC wants the sound, or streamed via Elevated helper.
-            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q || Elevated.running) listOf("mirror.audio.playback") else emptyList()) +
-            // The same sound on its own, without the screen.
-            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q || Elevated.running) listOf("mirror.sound") else emptyList()) +
-            (if (app.nectarlink.android.mirror.ScreenEncoder.supportsHevcDecoder()) listOf("mirror.decode.hevc") else emptyList())
+    private fun capabilities(@Suppress("UNUSED_PARAMETER") notificationAccess: Boolean): List<String> =
+        PhoneStorage.capabilities(context)
 
     /**
      * The phone was unlocked: redial a paired PC that's offline now instead
@@ -2073,7 +1908,6 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
         start()
         scope.launch {
             node?.networkChanged()
-            if (!Elevated.running) Elevated.start()
         }
     }
 
@@ -2640,7 +2474,7 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
             val currentNode = node ?: return@launch
             runCatching { currentNode.setDeviceToggle(pcId, PhoneStorage.TOGGLE_NAME, enabled) }
             enqueueNotificationOp {
-                it.updatePower(powerLevel(), capabilities(_state.value.notificationAccess))
+                it.updatePower(PowerLevel.BASIC, capabilities(false))
             }
         }
     }
@@ -2651,12 +2485,24 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
 
     fun addSafFolder(treeUri: Uri) {
         PhoneStorage.addSafFolder(context, treeUri)
-        refreshNotificationAccess()
+        refreshStorageAccess()
     }
 
     fun removeSafFolder(name: String) {
         PhoneStorage.removeSafFolder(context, name)
-        refreshNotificationAccess()
+        refreshStorageAccess()
+    }
+
+    private fun refreshStorageAccess() {
+        _state.update {
+            it.copy(
+                storageAllFilesAccess = PhoneStorage.hasAllFilesAccess(context),
+                storageSafFolders = PhoneStorage.safFolders(context).map { folder -> folder.name },
+            )
+        }
+        enqueueNotificationOp {
+            it.updatePower(PowerLevel.BASIC, PhoneStorage.capabilities(context))
+        }
     }
 
     /**

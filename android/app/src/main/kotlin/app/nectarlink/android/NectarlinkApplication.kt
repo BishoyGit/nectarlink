@@ -8,11 +8,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import app.nectarlink.android.banking.BankingPause
 import app.nectarlink.android.core.Core
-import app.nectarlink.android.elevated.Elevated
 import app.nectarlink.android.ui.Preferences
-import app.nectarlink.android.update.AppUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,9 +23,6 @@ class NectarlinkApplication : Application(), DefaultLifecycleObserver {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val core: Core by lazy { Core(this, scope) }
-
-    /** Updates from GitHub releases (release builds only). */
-    val updater: AppUpdater by lazy { AppUpdater(this) }
 
     private var pendingStopJob: Job? = null
 
@@ -50,26 +44,6 @@ class NectarlinkApplication : Application(), DefaultLifecycleObserver {
         super<Application>.onCreate()
         // Before the core starts: its network code reads the phone's DNS servers.
         app.nectarlink.android.core.AndroidContext.install(this)
-        // Before Elevated: it waits while paused for a banking app.
-        BankingPause.init(this)
-        BankingPause.restoreIfStranded(this)
-        // The media volume, if the app stopped while the phone's sound played on the PC.
-        app.nectarlink.android.mirror.PhoneQuiet.end(this)
-        Elevated.init(this)
-        // Assist only while a PC uses the phone, if the user chose that (#400).
-        app.nectarlink.android.banking.AssistOnDemand.init(this)
-        // What the phone offers PCs follows Elevated starting and stopping.
-        Elevated.onChange = {
-            core.refreshNotificationAccess()
-            app.nectarlink.android.banking.AssistOnDemand.reconcile(this)
-        }
-        Elevated.onClipboardChanged = { text, html -> core.onElevatedClipboardChanged(text, html) }
-        Elevated.onSensitiveCopied = { text -> core.onElevatedSensitiveCopied(text) }
-        Elevated.onInputBlocked = { core.onElevatedInputBlocked() }
-
-        // A build the phone sees in a feed is passed on to its PCs.
-        updater.onFeedSeen = { channel, version -> core.announceUpdate(channel, version) }
-
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         getSharedPreferences("appearance", Context.MODE_PRIVATE)
             .registerOnSharedPreferenceChangeListener(prefListener)

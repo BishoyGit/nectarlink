@@ -3401,6 +3401,8 @@ pub struct NodeOptions {
     /// Where received files are put once complete (the app then moves them
     /// where the user finds them).
     pub downloads_dir: String,
+    /// Capabilities this build offers in addition to file transfer.
+    pub capabilities: Vec<String>,
     /// Loopback TCP port (`127.0.0.1:<port>`) for the USB tunnel on Android.
     #[uniffi(default = Some(53319))]
     pub usb_port: Option<u16>,
@@ -3523,11 +3525,9 @@ impl NectarlinkNode {
         config.power = options.power.into();
         config.away_mode = options.away_mode;
         config.downloads_dir = Some(PathBuf::from(options.downloads_dir));
+        config.capabilities = options.capabilities;
         config.usb_port = options.usb_port;
         config.key_protector = Some(Arc::new(KeyProtectorAdapter(key_protector)));
-        if !config.capabilities.iter().any(|c| c == core::MIRROR_VIEW) {
-            config.capabilities.push(core::MIRROR_VIEW.into());
-        }
         let node =
             runtime.block_on(Node::start(config, Arc::new(PlatformAdapter(platform, listener.clone()))))?;
 

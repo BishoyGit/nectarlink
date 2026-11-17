@@ -26,7 +26,7 @@ class ActionsWidgetProvider : BloomWidget() {
         }
         views.setOnClickPendingIntent(
             R.id.act_clip,
-            Widgets.activity(context, REQ_SEND_CLIP, SendActivity.sendClipboardIntent(context, pc.id)),
+            Widgets.activity(context, REQ_SEND_CLIP, SendActivity.sendFilesIntent(context, pc.id)),
         )
         views.setOnClickPendingIntent(
             R.id.act_files,

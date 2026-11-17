@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
-<string name="app_name">NectarLink</string>
+<string name="app_name">NectarDrop</string>
 <!-- Pairing -->
 <string name="pair_title">Ghép nối với PC của bạn</string>
 <string name="pair_show_title">Ghép nối điện thoại hoặc máy tính bảng</string>
@@ -163,7 +163,7 @@
 <string name="transfer_pause">Tạm dừng</string>
 <string name="transfer_resume">Tiếp tục</string>
 <string name="transfer_paused_progress">Đã tạm dừng · %1$s / %2$s</string>
-<string name="transfer_received_from">Từ %1$s · trong Download/Nectarlink</string>
+<string name="transfer_received_from">Từ %1$s · trong Download/NectarDrop</string>
 <string name="transfer_sent_to">Đã gửi tới %1$s</string>
 <string name="transfer_cancelled">Đã hủy</string>
 <string name="transfer_denied">%1$s không chấp nhận tệp từ điện thoại này.</string>
@@ -1038,7 +1038,7 @@
 <string name="guide_files_pc_1">Kéo tệp thả vào cửa sổ NectarLink hoặc đảo cạnh trên (top-edge island) trên PC của bạn.</string>
 <string name="guide_files_opt_1">Gửi tệp / Gửi một thư mục: Chuyển từng tệp riêng lẻ hoặc toàn bộ cây thư mục.</string>
 <string name="guide_files_opt_2">Tạm dừng / Tiếp tục: Tiếp tục các lượt chuyển bị gián đoạn mà không gửi lại các byte đã hoàn tất.</string>
-<string name="guide_files_privacy">Tệp được truyền qua QUIC TLS 1.3 với xác thực toàn vẹn BLAKE3 vào thư mục Download/Nectarlink.</string>
+<string name="guide_files_privacy">Tệp được truyền qua QUIC TLS 1.3 với xác thực toàn vẹn BLAKE3 vào thư mục Download/NectarDrop.</string>
 <string name="guide_files_limits">Tối đa 5,000 tệp mỗi đợt.</string>
 <!-- 8. Send queue -->
 <string name="guide_queue_title">Hàng chờ gửi</string>

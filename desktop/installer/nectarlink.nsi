@@ -1,12 +1,12 @@
 ; SPDX-License-Identifier: GPL-3.0-or-later
 ;
-; The NectarLink installer for Windows (built by scripts/package.ps1).
+; The NectarDrop installer for Windows (built by scripts/package.ps1).
 ;
 ; Two ways to run it:
 ;
 ; - Opened by the user: no NSIS pages. It unpacks the app to a temporary
-;   folder and runs it there, as "Nectarlink Setup.exe" with --setup, which
-;   draws NectarLink's own setup window (desktop/app/src/setup.rs). That
+;   folder and runs it there, as "NectarDrop Setup.exe" with --setup, which
+;   draws NectarDrop's own setup window (desktop/app/src/setup.rs). That
 ;   window runs this installer again, elevated, as below.
 ; - With /S (that window, or the app's updater): installs into Program Files
 ;   for every user of the PC, without a window. /PROGRESS=<file> writes each
@@ -45,12 +45,12 @@ SetCompressor /SOLID zlib
 
 ; APP names the install folder, registry keys and the firewall rule; DISPLAY is
 ; the name people see.
-!define APP "Nectarlink"
-!define DISPLAY "NectarLink"
+!define APP "NectarDrop"
+!define DISPLAY "NectarDrop"
 !define EXE "nectarlink-desktop.exe"
-!define SETUP_EXE "Nectarlink Setup.exe"
+!define SETUP_EXE "NectarDrop Setup.exe"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}"
-!define FIREWALL_RULE "Nectarlink"
+!define FIREWALL_RULE "NectarDrop"
 
 Name "${DISPLAY}"
 OutFile "${OUTFILE}"
@@ -67,12 +67,12 @@ ShowUninstDetails nevershow
 VIProductVersion "${VERSION}.${BUILD}"
 VIAddVersionKey "ProductName" "${DISPLAY}"
 VIAddVersionKey "FileDescription" "${DISPLAY} Setup"
-VIAddVersionKey "CompanyName" "The NectarLink contributors"
+VIAddVersionKey "CompanyName" "NectarDrop contributors"
 VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "ProductVersion" "${DISPLAY_VERSION}"
 
-; 1: show NectarLink's own setup window. 0: install now (/S).
+; 1: show NectarDrop's own setup window. 0: install now (/S).
 Var Interactive
 ; Where each step is written, for the setup window (/PROGRESS=<file>).
 Var ProgressFile
@@ -139,7 +139,7 @@ Function .onInit
     ${EndIf}
   ${Else}
     StrCpy $Interactive 1
-    ; No NSIS window: the window is NectarLink's own.
+    ; No NSIS window: the window is NectarDrop's own.
     SetSilent silent
   ${EndIf}
 FunctionEnd
@@ -199,34 +199,6 @@ FunctionEnd
     Sleep 200
     IntOp $R0 $R0 + 1
   ${Loop}
-!macroend
-
-; Windows' camera service (Frame Server) keeps the webcam's DLL, and the
-; runtime it needs, loaded from this folder for as long as it runs, so they
-; can't be overwritten or deleted: a silent install would skip them and keep
-; the old ones for good. A loaded DLL can still be renamed, so one that can't
-; be deleted is moved aside and deleted at the next restart (under its new
-; name, so a later install's file isn't); the service keeps its copy until
-; then.
-!macro MoveAsideInUse FILE
-  Delete "$INSTDIR\${FILE}"
-  ${If} ${FileExists} "$INSTDIR\${FILE}"
-    StrCpy $R2 0
-    ${Do}
-      IntOp $R2 $R2 + 1
-    ${LoopWhile} ${FileExists} "$INSTDIR\${FILE}.$R2.old"
-    Rename "$INSTDIR\${FILE}" "$INSTDIR\${FILE}.$R2.old"
-    Delete /REBOOTOK "$INSTDIR\${FILE}.$R2.old"
-  ${EndIf}
-!macroend
-
-!macro MoveAsideCameraFiles
-  ; Moved aside earlier and no longer loaded.
-  Delete "$INSTDIR\*.dll.*.old"
-  !insertmacro MoveAsideInUse "nectarlink_vcam.dll"
-  !insertmacro MoveAsideInUse "vcruntime140.dll"
-  !insertmacro MoveAsideInUse "vcruntime140_1.dll"
-  !insertmacro MoveAsideInUse "msvcp140.dll"
 !macroend
 
 ; Locks folder $R1 the way Program Files is: owned by administrators, which
@@ -354,7 +326,7 @@ Section "Install"
       ${If} $INSTDIR != $PreviousDir
         Call CreateLockedInstallDir
         ${If} ${Errors}
-          !insertmacro Progress "error Setup couldn't make that folder safe for NectarLink. Choose another folder."
+          !insertmacro Progress "error Setup couldn't make that folder safe for NectarDrop. Choose another folder."
           SetErrorLevel 2
           Quit
         ${EndIf}
@@ -366,7 +338,6 @@ Section "Install"
     ; A clean copy: nothing left over from an older version.
     RMDir /r "$INSTDIR\qml"
     RMDir /r "$INSTDIR\platforms"
-    !insertmacro MoveAsideCameraFiles
     StrCpy $AppDir "$INSTDIR"
   ${EndIf}
 
@@ -388,56 +359,7 @@ Section "Install"
   ; Phones reach this PC over UDP (QUIC) and find it with mDNS.
   !insertmacro Progress "step firewall"
   nsExec::Exec 'netsh advfirewall firewall delete rule name="${FIREWALL_RULE}"'
-  nsExec::Exec 'netsh advfirewall firewall add rule name="${FIREWALL_RULE}" dir=in action=allow program="$INSTDIR\${EXE}" enable=yes profile=private,domain description="Lets paired phones connect to NectarLink."'
-
-  ; Updates without an administrator prompt: a task that runs this app as
-  ; SYSTEM to install a newer release (desktop/app/src/updater.rs). Only
-  ; SYSTEM and administrators may change it; signed-in users may read and
-  ; start it. Registered with schtasks from a task definition rather than
-  ; PowerShell, which security software can hold up without a word, leaving
-  ; setup stuck at this step.
-  !insertmacro Progress "step updates"
-  ; Shared folder for update downloads and channel choice: any signed-in user
-  ; on this PC may update them, and the update task checks the download's
-  ; SHA-256 in SystemTemp before running it.
-  ; Owned by administrators, and set on the folder alone: never /T, which
-  ; would follow a junction a user put inside to wherever it points. What
-  ; is created in it from now on inherits the grant.
-  CreateDirectory "$APPDATA\${APP}\updates"
-  nsExec::Exec 'icacls "$APPDATA\${APP}" /setowner *S-1-5-32-544'
-  nsExec::Exec 'icacls "$APPDATA\${APP}" /grant *S-1-5-32-545:(OI)(CI)M'
-  ${If} $AdminOnly != 1
-    ; Updates ask for permission in this folder (see the top of this file).
-    nsExec::Exec 'schtasks /Delete /TN "Nectarlink Update" /F'
-    Goto updates_done
-  ${EndIf}
-  InitPluginsDir
-  ${WordReplace} "$INSTDIR" "&" "&amp;" "+" $1
-  FileOpen $0 "$PLUGINSDIR\update-task.xml" w
-  FileWriteUTF16LE /BOM $0 '<?xml version="1.0" encoding="UTF-16"?>$\r$\n'
-  FileWriteUTF16LE $0 '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">$\r$\n'
-  FileWriteUTF16LE $0 '  <RegistrationInfo>$\r$\n'
-  FileWriteUTF16LE $0 '    <Description>Installs new versions of NectarLink from its GitHub releases.</Description>$\r$\n'
-  FileWriteUTF16LE $0 '    <SecurityDescriptor>D:(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;AU)</SecurityDescriptor>$\r$\n'
-  FileWriteUTF16LE $0 '  </RegistrationInfo>$\r$\n'
-  FileWriteUTF16LE $0 '  <Principals>$\r$\n'
-  FileWriteUTF16LE $0 '    <Principal id="Author"><UserId>S-1-5-18</UserId><RunLevel>HighestAvailable</RunLevel></Principal>$\r$\n'
-  FileWriteUTF16LE $0 '  </Principals>$\r$\n'
-  FileWriteUTF16LE $0 '  <Settings>$\r$\n'
-  FileWriteUTF16LE $0 '    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>$\r$\n'
-  FileWriteUTF16LE $0 '    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>$\r$\n'
-  FileWriteUTF16LE $0 '    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>$\r$\n'
-  FileWriteUTF16LE $0 '    <AllowStartOnDemand>true</AllowStartOnDemand>$\r$\n'
-  FileWriteUTF16LE $0 '    <Enabled>true</Enabled>$\r$\n'
-  FileWriteUTF16LE $0 '    <ExecutionTimeLimit>PT30M</ExecutionTimeLimit>$\r$\n'
-  FileWriteUTF16LE $0 '  </Settings>$\r$\n'
-  FileWriteUTF16LE $0 '  <Actions Context="Author">$\r$\n'
-  FileWriteUTF16LE $0 '    <Exec><Command>"$1\${EXE}"</Command><Arguments>--update-service</Arguments></Exec>$\r$\n'
-  FileWriteUTF16LE $0 '  </Actions>$\r$\n'
-  FileWriteUTF16LE $0 '</Task>$\r$\n'
-  FileClose $0
-  nsExec::Exec 'schtasks /Create /TN "Nectarlink Update" /XML "$PLUGINSDIR\update-task.xml" /F'
-  updates_done:
+  nsExec::Exec 'netsh advfirewall firewall add rule name="${FIREWALL_RULE}" dir=in action=allow program="$INSTDIR\${EXE}" enable=yes profile=private,domain description="Lets paired devices connect to NectarDrop."'
 
   !insertmacro Progress "step shortcuts"
   CreateShortCut "$SMPROGRAMS\${DISPLAY}.lnk" "$INSTDIR\${EXE}" "" "$INSTDIR\${EXE}" 0 "" "" "Your phone, on your PC"
@@ -473,11 +395,11 @@ Section "Install"
   WriteRegDWORD HKLM "Software\${APP}" "AdminOnlyFolder" $AdminOnly
   WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayName" "${DISPLAY}"
   WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayVersion" "${DISPLAY_VERSION}"
-  WriteRegStr HKLM "${UNINSTALL_KEY}" "Publisher" "The NectarLink contributors"
+  WriteRegStr HKLM "${UNINSTALL_KEY}" "Publisher" "NectarDrop contributors"
   WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\${EXE}"
   WriteRegStr HKLM "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKLM "${UNINSTALL_KEY}" "URLInfoAbout" "https://github.com/thtbee/nectarlink"
-  ; Windows Settings > Apps opens NectarLink's own uninstall window.
+  ; Windows Settings > Apps opens NectarDrop's own uninstall window.
   WriteRegStr HKLM "${UNINSTALL_KEY}" "UninstallString" '"$INSTDIR\${EXE}" --remove'
   WriteRegStr HKLM "${UNINSTALL_KEY}" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
   WriteRegDWORD HKLM "${UNINSTALL_KEY}" "NoModify" 1
@@ -507,29 +429,17 @@ Section "Uninstall"
   ${EndIf}
 
   !insertmacro Progress "step cleanup"
-  nsExec::Exec 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "try { Get-AppxPackage -Name \"Nectarlink.Desktop\" -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue } catch {}"'
+  nsExec::Exec 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "try { Get-AppxPackage -Name \"NectarDrop.Desktop\" -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue } catch {}"'
   nsExec::Exec 'netsh advfirewall firewall delete rule name="${FIREWALL_RULE}"'
-  nsExec::Exec 'schtasks /Delete /TN "Nectarlink Update" /F'
-  ; Users can write here, so only our own files go, and the folders only
-  ; when empty: a recursive delete as administrator could follow a junction.
-  Delete "$APPDATA\${APP}\updates\*.exe"
-  Delete "$APPDATA\${APP}\updates\*.part"
-  Delete "$APPDATA\${APP}\update-channel"
-  Delete "$APPDATA\${APP}\update-feed.json"
-  RMDir "$APPDATA\${APP}\updates"
-  RMDir "$APPDATA\${APP}"
   Delete "$SMPROGRAMS\${DISPLAY}.lnk"
   Delete "$DESKTOP\${DISPLAY}.lnk"
   ; Only ever a folder of our own (a silent install can be pointed
-  ; anywhere with /D): never everything in, say, C:\. What the camera
-  ; service still has loaded goes at the next restart.
+  ; anywhere with /D): never everything in, say, C:\.
   ${GetFileName} "$INSTDIR" $0
   ${If} $0 == "${APP}"
-    !insertmacro MoveAsideCameraFiles
     RMDir /r /REBOOTOK "$INSTDIR"
   ${Else}
     Delete "$INSTDIR\${EXE}"
-    !insertmacro MoveAsideInUse "nectarlink_vcam.dll"
     Delete "$INSTDIR\AppxManifest.xml"
     RMDir /r "$INSTDIR\Assets"
     Delete "$INSTDIR\sparse-package.log"

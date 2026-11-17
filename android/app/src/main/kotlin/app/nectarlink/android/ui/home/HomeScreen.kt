@@ -1396,7 +1396,7 @@ private fun PeerCard(
         FilledTonalButton(
             contentPadding = CardButtonPadding,
             enabled = !device.online || device.has("pair.clipboard"),
-            onClick = { context.startActivity(SendActivity.sendClipboardIntent(context, device.id)) },
+            onClick = { context.startActivity(SendActivity.sendFilesIntent(context, device.id)) },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(imageVector = ClipboardIcon, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -1715,7 +1715,7 @@ private fun PcCard(
                             // Offline, the clip waits in the send queue.
                             enabled = if (device.online) device.usable("clipboard.auto_phone_to_pc") else true,
                             colors = tonal,
-                            onClick = { context.startActivity(SendActivity.sendClipboardIntent(context, device.id)) },
+                            onClick = { context.startActivity(SendActivity.sendFilesIntent(context, device.id)) },
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(

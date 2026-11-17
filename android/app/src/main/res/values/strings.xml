@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
-    <string name="app_name">NectarLink</string>
+    <string name="app_name">NectarDrop</string>
 
     <!-- Pairing -->
     <string name="pair_title">Pair with your PC</string>
     <string name="pair_show_title">Pair a phone or tablet</string>
-    <string name="pair_show_hint">On your other phone or tablet, open NectarLink, tap Pair, and scan this code.</string>
+    <string name="pair_show_hint">On your other phone or tablet, open NectarDrop, tap Pair, and scan this code.</string>
     <string name="pair_show_qr_desc">Pairing code for another phone or tablet</string>
     <string name="action_show_code">Pair a phone or tablet instead</string>
-    <string name="pair_scan_hint">On your PC, open NectarLink. Point the camera at the code it shows. Another phone or tablet shows its code under Pair a phone or tablet.</string>
+    <string name="pair_scan_hint">On your PC, open NectarDrop. Point the camera at the code it shows. Another phone or tablet shows its code under Pair a phone or tablet.</string>
     <string name="pair_nearby_title">Pair nearby</string>
-    <string name="pair_nearby_hint">On your PC, open NectarLink and keep its pairing screen open. It shows up here.</string>
+    <string name="pair_nearby_hint">On your PC, open NectarDrop and keep its pairing screen open. It shows up here.</string>
     <string name="pair_looking">Looking for PCs…</string>
     <string name="pair_joining">Pairing…</string>
     <string name="pair_connecting">Connecting to %1$s…</string>
@@ -25,9 +25,9 @@
     <string name="pair_failed_declined">Pairing was declined on one of the devices.</string>
     <string name="pair_failed_expired">The code expired. Show a new one on your PC.</string>
     <string name="pair_failed_unreachable">Couldn\'t reach the PC. Make sure both are on the same network.</string>
-    <string name="pair_failed_other">That isn\'t a NectarLink pairing code, or something went wrong.</string>
+    <string name="pair_failed_other">That isn\'t a NectarDrop pairing code, or something went wrong.</string>
     <string name="your_pc">your PC</string>
-    <string name="camera_permission_needed">NectarLink needs the camera to scan the pairing code. Nothing is recorded.</string>
+    <string name="camera_permission_needed">NectarDrop needs the camera to scan the pairing code. Nothing is recorded.</string>
 
     <!-- Home -->
     <string name="home_title">Home</string>
@@ -166,7 +166,7 @@
     <string name="transfer_pause">Pause</string>
     <string name="transfer_resume">Resume</string>
     <string name="transfer_paused_progress">Paused · %1$s / %2$s</string>
-    <string name="transfer_received_from">From %1$s · in Download/Nectarlink</string>
+    <string name="transfer_received_from">From %1$s · in Download/NectarDrop</string>
     <string name="transfer_sent_to">Sent to %1$s</string>
     <string name="transfer_cancelled">Cancelled</string>
     <string name="transfer_denied">%1$s doesn’t accept files from this phone.</string>
@@ -177,6 +177,25 @@
     <string name="transfer_nothing">Those files can’t be opened.</string>
     <string name="transfer_off_for">Files are turned off for %1$s.</string>
     <string name="transfer_pick_pc">Send to which PC?</string>
+    <string name="transfer_only_starting">Starting file sharing</string>
+    <string name="transfer_only_devices">Devices</string>
+    <string name="transfer_only_pair_prompt">Pair this phone with a computer to send and receive files.</string>
+    <string name="transfer_only_connected">%1$s · Connected</string>
+    <string name="transfer_only_offline">%1$s · Offline</string>
+    <string name="transfer_only_shared_folders">Shared folders</string>
+    <string name="transfer_only_folder_hint">Select folders this computer can browse.</string>
+    <string name="transfer_only_choose_folders">Choose folders for computer access…</string>
+    <string name="transfer_only_transfers">Transfers</string>
+    <string name="transfer_only_empty">Your transfers will appear here.</string>
+    <string name="transfer_only_from">From %1$s · %2$s</string>
+    <string name="transfer_only_to">To %1$s · %2$s</string>
+    <string name="transfer_only_waiting_approval">Waiting for approval</string>
+    <string name="transfer_only_waiting">Waiting</string>
+    <string name="transfer_only_transferring">Transferring</string>
+    <string name="transfer_only_paused">Paused</string>
+    <string name="transfer_only_complete">Complete</string>
+    <string name="transfer_only_failed">Failed</string>
+    <string name="transfer_only_progress">%1$d%% · %2$s of %3$s</string>
     <string name="clip_tile_label">Send clipboard</string>
     <string name="action_send_clipboard">Send clipboard</string>
     <string name="clip_sent_to">Sent to %1$s</string>
@@ -1089,7 +1108,7 @@
     <string name="guide_files_pc_1">Drag files onto the NectarLink window or top-edge island on your PC.</string>
     <string name="guide_files_opt_1">Send files / Send a folder: Transfers individual files or full folder trees.</string>
     <string name="guide_files_opt_2">Pause / Resume: Resumes interrupted transfers without re-sending completed bytes.</string>
-    <string name="guide_files_privacy">Files stream over QUIC TLS 1.3 with BLAKE3 integrity verification into Download/Nectarlink.</string>
+    <string name="guide_files_privacy">Files stream over QUIC TLS 1.3 with BLAKE3 integrity verification into Download/NectarDrop.</string>
     <string name="guide_files_limits">Up to 5,000 files per batch.</string>
 
     <!-- 8. Send queue -->

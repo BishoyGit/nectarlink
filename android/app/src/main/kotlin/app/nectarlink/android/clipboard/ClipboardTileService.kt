@@ -11,7 +11,7 @@ class ClipboardTileService : TileService() {
     @SuppressLint("StartActivityAndCollapseDeprecated") // The Intent overload is the only one before Android 14.
     override fun onClick() {
         super.onClick()
-        val intent = SendActivity.sendClipboardIntent(this)
+        val intent = SendActivity.sendFilesIntent(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startActivityAndCollapse(
                 PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),

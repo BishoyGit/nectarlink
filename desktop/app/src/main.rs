@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! NectarLink for Windows.
+//! NectarDrop for Windows.
 //!
 //! One process: Rust runs the core (`nectarlink-core`) and OS integration,
 //! Qt Quick draws the UI. Windows are created when opened and destroyed when
@@ -247,7 +247,7 @@ impl Platform for DesktopPlatform {
 /// Command-line options (also used by shortcuts and autostart).
 #[derive(Debug, Default)]
 struct Options {
-    /// Where to keep data (default: %LOCALAPPDATA%\Nectarlink).
+    /// Where to keep data (default: %LOCALAPPDATA%\NectarDrop).
     data_dir: Option<PathBuf>,
     /// Start in the tray without opening the window (autostart).
     minimized: bool,
@@ -414,7 +414,7 @@ fn parse_options_from<I: IntoIterator<Item = std::ffi::OsString>>(iter: I) -> Op
 }
 
 fn default_data_dir() -> PathBuf {
-    dirs::data_local_dir().unwrap_or_else(std::env::temp_dir).join("Nectarlink")
+    dirs::data_local_dir().unwrap_or_else(std::env::temp_dir).join("NectarDrop")
 }
 
 /// Network changes come in bursts; tell the core once things settle.
@@ -427,7 +427,6 @@ fn watch_network() {
         core_host::spawn(async {
             tokio::time::sleep(Duration::from_secs(1)).await;
             PENDING.store(false, Ordering::Release);
-            core_host::refresh_wake().await;
             if let Some(node) = core_host::node() {
                 tracing::debug!("network changed");
                 node.network_changed().await;
@@ -436,15 +435,7 @@ fn watch_network() {
     });
 }
 
-/// Phone notifications as Windows toasts, sent by "NectarLink" with the
-/// app's icon (written as a PNG, which Windows needs as a file).
-fn start_toasts() {
-    let icon = core_host::host().data_dir.join("cache").join("nectarlink.png");
-    win::toast::start(icon, notifications::on_toast);
-}
-
-/// Removes what the app set up in Windows: the "Send to" entries and the
-/// notification sender registration.
+/// Removes what the app set up in Windows: the "Send to" entries.
 fn uninstall() {
     tracing::info!("uninstalling");
     if let Err(e) = send_to::remove_all() {
@@ -452,7 +443,6 @@ fn uninstall() {
     }
     storage::unregister_all();
     let _ = win::vcam::unregister_hklm();
-    win::toast::unregister();
     win::jumplist::unregister();
     startup::remove();
 }
@@ -485,7 +475,7 @@ fn run_setup_window(mode: setup::Mode) -> ExitCode {
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     let mut app = QGuiApplication::new();
     if let Some(mut app) = app.as_mut() {
-        app.as_mut().set_application_name(&QString::from("NectarLink Setup"));
+        app.as_mut().set_application_name(&QString::from("NectarDrop Setup"));
         app.as_mut().set_application_version(&QString::from(env!("CARGO_PKG_VERSION")));
     }
     // Before any QML loads, so every string is right on the first pass.
@@ -606,124 +596,34 @@ fn main() -> ExitCode {
         }
     };
 
-    // Before any window: toasts and the taskbar both go by this ID.
-    win::toast::set_process_id();
     // Logging out or shutting down sends SIGTERM: quit as Quit does, so
     // phone storage is unmounted instead of left behind.
     #[cfg(target_os = "linux")]
     win::quit_on_signals(bridge::app::request_quit);
-    win::jumplist::register(options.data_dir.as_deref());
     // Before the core looks for adb: one downloaded for phones on a cable is used too.
     phone_install::init(&data_dir);
     if let Err(e) = core_host::start(data_dir.clone(), Arc::new(DesktopPlatform)) {
         tracing::error!(error = %e, "can't start the core runtime");
         return ExitCode::FAILURE;
     }
-    // The node starts in the background, so wait for it: the beacon carries
-    // its device ID.
-    core_host::spawn(async {
-        if let Some(node) = core_host::wait_for_node().await {
-            win::ble_beacon::start(node.device_id());
-        }
-    });
-    core_host::host().hub.update(|s| {
-        notification_store::load(&data_dir, s);
-        state::Changes::APPS | state::Changes::HISTORY
-    });
-    notification_store::start(data_dir.clone());
-    std::thread::spawn(notifications::prune_images);
     watch_network();
-    start_toasts();
-    // The Share sheet and notification buttons, after an update (#84).
+    // The Windows Share sheet.
     #[cfg(windows)]
     win::share_target::ensure_sparse_package(data_dir.clone());
-    clipboard::start();
-    win::smtc::start(media::on_flyout);
-    win::media_sessions::start(media::local_changed);
-    deck::init(&data_dir);
     let settings = settings::Settings::load(&data_dir);
     settings.apply_runtime();
-    clipboard::set_auto_send(settings.auto_clipboard);
-    clipboard::set_history_enabled(settings.clipboard_history);
-    clipboard::set_suggest_actions(settings.suggest_clipboard_actions);
-    notifications::set_auto_copy_otp(settings.auto_copy_otp);
-    notifications::set_sync_dnd(settings.sync_dnd);
-    notifications::set_hold_when_locked(settings.hold_when_locked);
-    notifications::start_lock_watch();
-    calls::set_pause_media_on_call(settings.pause_media_on_call);
-    pc_mirror::set_mute_while_watched(settings.mute_while_watched);
-    recordings::init(&settings);
-    send_to::set_enabled(settings.send_to_menu);
-    battery::set_enabled(settings.battery_alerts);
+    send_to::set_enabled(true);
     storage::start();
-    folder_sync::start_poller();
-    photo_backup::start();
-    webcam::init(&settings);
-    phone_mic::init(&settings);
-    call_audio::init(&settings);
-    local_api::init(&settings);
-    win::widget::write_state_snapshot(&data_dir);
-    win::tray::update_hotkeys(
-        &settings.continuity_photo_hotkey,
-        &settings.continuity_scan_hotkey,
-        &settings.command_palette_hotkey,
-        &settings.shelf_hotkey,
-    );
-    let updated_from = updater::note_running_version(&data_dir);
-    if updated_from.is_some() {
-        let mut saved = settings::Settings::load(&data_dir);
-        if saved.ask_for_star_after_update()
-            && let Err(e) = saved.save(&data_dir)
-        {
-            tracing::warn!(error = %e, "can't save settings");
-        }
-    }
-    // A test instance (own data folder) leaves the user's menu and sign-in
-    // alone.
     if options.data_dir.is_none() {
         send_to::start();
-        startup::start(settings.start_with_windows);
-        updater::set_auto(settings.auto_update);
-        updater::set_auto_install(settings.install_updates);
-        // Kept from the first run: going by the version alone, a nightly install
-        // would leave Nightly as soon as it took a release.
-        let channel = version::Channel::parse(&settings.update_channel).unwrap_or_else(|| {
-            let own = updater::channel();
-            let mut saved = settings::Settings::load(&data_dir);
-            saved.update_channel = own.as_str().into();
-            if let Err(e) = saved.save(&data_dir) {
-                tracing::warn!(error = %e, "can't save settings");
-            }
-            own
-        });
-        updater::set_channel(channel);
-        updater::start();
-        match (updated_from, options.updated) {
-            (Some(previous), _) => {
-                // A new version invites to try Hive again, once.
-                let mut saved = settings::Settings::load(&data_dir);
-                if std::mem::take(&mut saved.hive_invite_dismissed)
-                    && let Err(e) = saved.save(&data_dir)
-                {
-                    tracing::warn!(error = %e, "can't save settings");
-                }
-                updater::announce_update(previous, !options.minimized);
-            }
-            // Reopened by the relauncher, still on this version.
-            (None, true) => updater::announce_update_failed(!options.minimized),
-            (None, false) => {}
-        }
     }
     // Requests left while no instance was running, then this launch's own.
     for waiting in launch::drain(&data_dir) {
-        if matches!(
-            waiting,
-            Request::Send { .. } | Request::Share { .. } | Request::TaskNotify { .. } | Request::Task { .. }
-        ) {
+        if matches!(waiting, Request::Send { .. } | Request::Share { .. }) {
             send_to::handle(waiting);
         }
     }
-    if matches!(request, Request::Send { .. } | Request::Share { .. } | Request::Task { .. }) {
+    if matches!(request, Request::Send { .. } | Request::Share { .. }) {
         send_to::handle(request);
     }
 
@@ -738,7 +638,7 @@ fn main() -> ExitCode {
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     let mut app = QGuiApplication::new();
     if let Some(mut app) = app.as_mut() {
-        app.as_mut().set_application_name(&QString::from("Nectarlink"));
+        app.as_mut().set_application_name(&QString::from("NectarDrop"));
         app.as_mut().set_application_version(&QString::from(env!("CARGO_PKG_VERSION")));
     }
     // Before any QML loads, so every string is right on the first pass.
@@ -787,7 +687,6 @@ fn main() -> ExitCode {
     pc_mirror::stop_all();
     photos::clear_shared_files();
     local_api::stop();
-    win::ble_beacon::stop();
     webcam::shutdown();
     storage::shutdown();
     win::net::stop();

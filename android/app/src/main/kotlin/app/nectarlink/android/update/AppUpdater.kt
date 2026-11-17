@@ -21,7 +21,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import app.nectarlink.android.BuildConfig
-import app.nectarlink.android.NectarlinkApplication
 import app.nectarlink.android.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -536,38 +535,7 @@ class AppUpdater(context: Context) {
 
     /** Android's answer: ask the user to confirm, or it's done (or failed). */
     class InstallResult : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val updater = (context.applicationContext as NectarlinkApplication).updater
-            when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
-                PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                    val confirm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(Intent.EXTRA_INTENT)
-                    }?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    if (confirm == null) {
-                        updater.installFailed()
-                        return
-                    }
-                    // Started by the user: Android's prompt opens now. In the background it
-                    // can't, so a notification waits for the tap.
-                    if (updater.prefs.getBoolean(LAST_AUTOMATIC, false)) {
-                        updater.notifyReady(confirm)
-                    } else {
-                        runCatching { context.startActivity(confirm) }.onFailure { updater.notifyReady(confirm) }
-                    }
-                }
-                // This process is replaced; the new version says it's updated (onUpdated).
-                PackageInstaller.STATUS_SUCCESS -> Unit
-                // The user said no to Android's prompt: the update is still there to install.
-                PackageInstaller.STATUS_FAILURE_ABORTED -> updater.installCancelled()
-                else -> {
-                    Log.w(TAG, "install failed: ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}")
-                    updater.installFailed()
-                }
-            }
-        }
+        override fun onReceive(context: Context, intent: Intent) = Unit
     }
 
     private fun channel(manager: NotificationManager) {

@@ -7,7 +7,7 @@
   1. Builds the release app (unless -SkipBuild).
   2. Stages it with the Qt libraries, plugins, QML modules and translations it
      uses (windeployqt), the Microsoft C++ runtime, and the license notices.
-  3. Packs the folder into target\package\Nectarlink-<version>-x64-setup.exe
+  3. Packs the folder into target\package\NectarDrop-<version>-x64-setup.exe
      with NSIS (unless -StageOnly).
 
   Needs Qt (qmake on PATH, or QT_ROOT_DIR / -QtRoot) and, for the
@@ -102,40 +102,24 @@ if (-not $SkipBuild) {
     if ($isArm64) {
         $env:QMAKE = Join-Path $arm64ToolDir "qmake6.exe"
         if (-not (Test-Path $env:QMAKE)) { $env:QMAKE = Join-Path $arm64ToolDir "qmake.exe" }
-        Invoke-Native "the build" { cargo build --locked --release --target aarch64-pc-windows-msvc -p nectarlink-desktop -p nectarlink-vcam }
+        Invoke-Native "the build" { cargo build --locked --release --target aarch64-pc-windows-msvc -p nectarlink-desktop }
     } else {
         $env:PATH = "$(Join-Path $targetKit 'bin');$env:PATH"
-        Invoke-Native "the build" { cargo build --locked --release -p nectarlink-desktop -p nectarlink-vcam }
+        Invoke-Native "the build" { cargo build --locked --release -p nectarlink-desktop }
     }
 }
 $exe = Join-Path $targetDir 'nectarlink-desktop.exe'
 if (-not (Test-Path $exe)) { throw "no release build at $exe" }
-$vcamDll = Join-Path $targetDir 'nectarlink_vcam.dll'
-if (-not (Test-Path $vcamDll)) { throw "no release build at $vcamDll" }
 
 # ---- Stage ----
 Step "Stage"
 $package = Join-Path $root 'target\package'
-$stage = Join-Path $package 'Nectarlink'
+$stage = Join-Path $package 'NectarDrop'
 if (Test-Path $stage) {
-    $stagedVcam = Join-Path $stage 'nectarlink_vcam.dll'
-    if (Test-Path $stagedVcam) {
-        & regsvr32.exe /s /u $stagedVcam 2>$null | Out-Null
-        try {
-            Remove-Item $stagedVcam -Force -ErrorAction Stop
-        } catch {
-            # Windows Frame Server (svchost) may keep a mapped handle to the DLL;
-            # NTFS allows moving a mapped file on the same volume so staging stays clean.
-            $trashDir = Join-Path $root 'target\package-locked'
-            New-Item -ItemType Directory -Force $trashDir | Out-Null
-            Move-Item $stagedVcam (Join-Path $trashDir "nectarlink_vcam.$([DateTime]::UtcNow.Ticks).dll") -Force -ErrorAction SilentlyContinue
-        }
-    }
     Remove-Item $stage -Recurse -Force
 }
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item $exe $stage
-Copy-Item $vcamDll $stage
 
 Invoke-Native "windeployqt" {
     $deployArgs = @(
@@ -275,7 +259,7 @@ Step "Installer ($Arch)"
 $makensis = (Get-Command makensis -ErrorAction SilentlyContinue).Source
 if (-not $makensis) { $makensis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe' }
 if (-not (Test-Path $makensis)) { throw "NSIS (makensis) not found" }
-$out = Join-Path $package "Nectarlink-$version-$Arch-setup.exe"
+$out = Join-Path $package "NectarDrop-$version-$Arch-setup.exe"
 Invoke-Native "makensis" {
     & $makensis /V2 "/DVERSION=$numeric" "/DBUILD=$build" "/DDISPLAY_VERSION=$version" "/DARCH=$Arch" "/DSTAGE=$stage" `
         "/DICON=$($icon.FullName)" "/DOUTFILE=$out" (Join-Path $root 'desktop\installer\nectarlink.nsi')

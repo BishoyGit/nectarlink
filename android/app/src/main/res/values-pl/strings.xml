@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
-    <string name="app_name">NectarLink</string>
+    <string name="app_name">NectarDrop</string>
 
     <!-- Pairing -->
     <string name="pair_title">Sparuj z komputerem</string>
@@ -168,7 +168,7 @@
     <string name="transfer_pause">Wstrzymaj</string>
     <string name="transfer_resume">Wznów</string>
     <string name="transfer_paused_progress">Wstrzymano · %1$s / %2$s</string>
-    <string name="transfer_received_from">Z %1$s · w folderze Download/Nectarlink</string>
+    <string name="transfer_received_from">Z %1$s · w folderze Download/NectarDrop</string>
     <string name="transfer_sent_to">Wysłano do %1$s</string>
     <string name="transfer_cancelled">Anulowano</string>
     <string name="transfer_denied">%1$s nie przyjmuje plików z tego telefonu.</string>
@@ -1101,7 +1101,7 @@
     <string name="guide_files_pc_1">Przeciągnij pliki na okno NectarLink lub wyspę przy górnej krawędzi ekranu komputera.</string>
     <string name="guide_files_opt_1">Wyślij pliki / Wyślij folder: przesyła pojedyncze pliki lub pełne struktury folderów.</string>
     <string name="guide_files_opt_2">Wstrzymaj / Wznów: wznawia przerwane transfery bez ponownego wysyłania przesłanych już bajtów.</string>
-    <string name="guide_files_privacy">Pliki są przesyłane przez QUIC TLS 1.3 z weryfikacją integralności BLAKE3 do folderu Download/Nectarlink.</string>
+    <string name="guide_files_privacy">Pliki są przesyłane przez QUIC TLS 1.3 z weryfikacją integralności BLAKE3 do folderu Download/NectarDrop.</string>
     <string name="guide_files_limits">Do 5000 plików w jednej partii.</string>
 
     <!-- 8. Send queue -->

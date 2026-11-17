@@ -112,6 +112,23 @@ pub fn start(data_dir: PathBuf, platform: Arc<dyn Platform>) -> std::io::Result<
 pub fn compute_capabilities(
     #[cfg_attr(not(any(windows, target_os = "linux")), allow(unused_variables))] node: Option<&Node>,
 ) -> Vec<String> {
+    #[cfg(windows)]
+    {
+        let _ = node;
+        return vec![
+            nectarlink_core::STORAGE_MOUNT.into(),
+            nectarlink_core::STORAGE_READ.into(),
+            nectarlink_core::STORAGE_WRITE.into(),
+        ];
+    }
+    #[cfg(not(windows))]
+    compute_full_capabilities(node)
+}
+
+#[cfg(not(windows))]
+fn compute_full_capabilities(
+    #[cfg_attr(not(any(windows, target_os = "linux")), allow(unused_variables))] node: Option<&Node>,
+) -> Vec<String> {
     let mut caps = vec![
         "pc.power".into(),
         // Another PC's clipboard lands here (#432); phones already send theirs.
@@ -229,15 +246,13 @@ pub fn refresh_capabilities() {
 
 async fn run(data_dir: PathBuf, platform: Arc<dyn Platform>) {
     let host = host();
-    let wake = crate::win::wol::query_wake_status();
     let mut config = NodeConfig::new(&data_dir, this_device(), env!("CARGO_PKG_VERSION"));
     config.downloads_dir = Some(downloads_dir());
     config.adb_server = adb_enabled().then_some(nectarlink_core::DEFAULT_ADB_ADDR);
-    let settings = crate::settings::Settings::load(&data_dir);
-    config.away_mode = settings.away_mode;
+    config.away_mode = false;
     #[cfg(target_os = "linux")]
     {
-        config.network_interface = Some(settings.network_interface);
+        config.network_interface = Some(crate::settings::Settings::load(&data_dir).network_interface);
     }
     // This PC's own players, for phones (crate::win::media_sessions).
     config.capabilities = compute_capabilities(None);
@@ -258,7 +273,6 @@ async fn run(data_dir: PathBuf, platform: Arc<dyn Platform>) {
     if post_start_caps != initial_caps {
         node.update_power(nectarlink_core::PowerLevel::Basic, post_start_caps).await;
     }
-    node.set_wake_info(wake.info.clone()).await;
     // Subscribe before reading the initial state so no event is missed.
     let mut events = node.events();
     let devices = node.paired_devices().unwrap_or_else(|e| {
@@ -306,48 +320,6 @@ async fn run(data_dir: PathBuf, platform: Arc<dyn Platform>) {
     });
     host.started.notify_waiters();
 
-    host.runtime.spawn(async {
-        let mut was_active = false;
-        let mut last_sent_at = std::time::Instant::now() - std::time::Duration::from_secs(60);
-        loop {
-            tokio::time::sleep(std::time::Duration::from_secs(15)).await;
-            let Some(node) = self::node() else { continue };
-            let online_peers: Vec<_> = host.hub.read(|s| {
-                s.devices
-                    .iter()
-                    .filter(|d| matches!(d.link, LinkState::Online { .. }))
-                    .map(|d| d.id)
-                    .collect()
-            });
-            if online_peers.is_empty() {
-                was_active = false;
-                continue;
-            }
-            // Active quiets the phone's own notification sounds, since this PC
-            // shows them: not while its pop-ups are paused (#384).
-            let active =
-                crate::win::input::is_user_active_within_ms(30_000) && !crate::notifications::paused();
-            let should_send = active != was_active
-                || (active && last_sent_at.elapsed() >= std::time::Duration::from_secs(30));
-            if should_send {
-                was_active = active;
-                last_sent_at = std::time::Instant::now();
-                for peer in online_peers {
-                    let node = node.clone();
-                    tokio::spawn(async move {
-                        let _ = node
-                            .set_phone_toggle(
-                                peer,
-                                "pc_active".into(),
-                                nectarlink_core::PhoneToggleValue::Bool(active),
-                            )
-                            .await;
-                    });
-                }
-            }
-        }
-    });
-
     loop {
         match events.recv().await {
             Ok(event) => {
@@ -371,28 +343,9 @@ async fn run(data_dir: PathBuf, platform: Arc<dyn Platform>) {
                         peer_name
                     ));
                 }
-                crate::notifications::apply(&event);
-                crate::media::on_event(&event);
-                crate::notifications::update_toasts(&event);
-                crate::clipboard::on_event(&event);
-                crate::photos::on_event(&event);
-                crate::photo_backup::on_event(&event);
-                crate::continuity_camera::on_event(&event);
-                crate::calls::on_event(&event);
-                crate::messages::on_event(&event);
-                crate::mirror::on_event(&event);
-                crate::pc_mirror::on_event(&event);
-                crate::remote::on_event(&event);
                 crate::transfers::on_event(&event);
                 crate::send_to::on_event(&event);
-                crate::battery::on_event(&event);
-                crate::update_relay::on_event(&event);
                 crate::storage::on_event(&event);
-                crate::webcam::on_event(&event);
-                crate::phone_mic::on_event(&event);
-                crate::automations::on_event(&event);
-                #[cfg(windows)]
-                crate::win::pointer_hooks::on_event(&event);
                 crate::bridge::app::on_home_event(&event);
             }
             Err(RecvError::Lagged(missed)) => {
@@ -423,9 +376,9 @@ async fn run(data_dir: PathBuf, platform: Arc<dyn Platform>) {
     }
 }
 
-/// Where files from phones go: `Downloads\Nectarlink`.
+/// Where files from phones go: `Downloads\NectarDrop`.
 pub fn downloads_dir() -> PathBuf {
-    dirs::download_dir().unwrap_or_else(|| host().data_dir.join("received")).join("Nectarlink")
+    dirs::download_dir().unwrap_or_else(|| host().data_dir.join("received")).join("NectarDrop")
 }
 
 /// How this PC presents itself to phones.

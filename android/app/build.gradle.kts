@@ -28,17 +28,23 @@ val appVersionCode: Int = run {
     major * 10_000_000 + minor * 100_000 + patch * 1_000 + build
 }
 
+val rustAbis: List<String> =
+    (findProperty("nectarlink.abis") as String?)?.split(",")?.map(String::trim) ?: listOf("arm64-v8a", "x86_64")
+
 android {
     namespace = "app.nectarlink.android"
     compileSdk = 37
     ndkVersion = "30.0.16248370"
 
     defaultConfig {
-        applicationId = "app.nectarlink"
+        applicationId = "app.nectardrop"
         minSdk = 26
         targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersion
+        ndk {
+            abiFilters.addAll(rustAbis)
+        }
     }
 
     // Only the languages the app offers (res/xml/locales_config.xml) go into the APK: a
@@ -172,8 +178,6 @@ abstract class BundleFonts : DefaultTask() {
 }
 
 val workspaceDir: Directory = rootProject.layout.projectDirectory.dir("..")
-val rustAbis: List<String> =
-    (findProperty("nectarlink.abis") as String?)?.split(",")?.map(String::trim) ?: listOf("arm64-v8a", "x86_64")
 
 androidComponents {
     onVariants { variant ->

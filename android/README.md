@@ -1,4 +1,4 @@
-# NectarLink for Android
+# NectarDrop for Android
 
 Kotlin + Jetpack Compose (Material 3) on top of the shared Rust core,
 called through UniFFI (`core/nectarlink-ffi`).
@@ -18,13 +18,15 @@ Then, from `android/`:
 ```
 ./gradlew assembleDebug                          # phones + x86_64 emulator
 ./gradlew assembleDebug -Pnectarlink.abis=x86_64 # emulator only (faster)
+./gradlew assembleRelease -Pnectarlink.abis=arm64-v8a # arm64-only APK
 ./gradlew testDebugUnitTest
 ```
 
 Gradle builds the core with cargo-ndk (cargo profile `android`: release
 optimizations, symbols kept for UniFFI and stripped when packaging) and
-generates the Kotlin bindings from the built library. Both are generated
-sources; nothing generated is checked in except the theme tokens
+generates the Kotlin bindings from the built library. The packaged native
+libraries follow the selected ABI list. Both are generated sources; nothing
+generated is checked in except the theme tokens
 (`ui/theme/Tokens.kt`, from `cargo xtask tokens`).
 
 ## Layout
