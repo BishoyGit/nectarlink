@@ -311,7 +311,7 @@ async fn run(data_dir: PathBuf, platform: Arc<dyn Platform>) {
         }
         changes |= s.set_send_queue(send_queue);
         s.status = Some(status);
-        s.wake = wake;
+        s.wake = Default::default();
         changes |= Changes::STATUS | Changes::CAPABILITIES | Changes::CLIPBOARD | Changes::TIMELINE;
         if walkthrough_reconciled {
             changes |= Changes::PREFS;
