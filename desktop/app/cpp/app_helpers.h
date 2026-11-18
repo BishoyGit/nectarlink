@@ -21,7 +21,6 @@ void quit_qt_app();
 void set_ui_scale(int32_t percent);
 int32_t qml_problem_count();
 int32_t visible_top_level_window_count();
-void report_ui_check_window_state();
 
 // Adds one size of the app icon (straight-alpha RGBA, size x size).
 void add_app_icon_image(int32_t size, rust::Slice<const uint8_t> rgba);

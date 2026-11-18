@@ -203,28 +203,6 @@ int32_t visible_top_level_window_count()
     return count;
 }
 
-void report_ui_check_window_state()
-{
-    auto *engine = qobject_cast<QQmlApplicationEngine *>(qmlEngineRef().data());
-    const auto roots = engine ? engine->rootObjects() : QList<QObject *> {};
-    const auto windows = QGuiApplication::topLevelWindows();
-    std::fprintf(stderr, "nectarlink: --ui-check: platform=%s roots=%lld top-level-windows=%lld\n",
-                 qUtf8Printable(QGuiApplication::platformName()), static_cast<long long>(roots.size()),
-                 static_cast<long long>(windows.size()));
-    for (QObject *root : roots) {
-        auto *window = qobject_cast<QWindow *>(root);
-        std::fprintf(stderr, "nectarlink: --ui-check: root=%s window=%s visible=%d visibility=%d\n",
-                     root ? root->metaObject()->className() : "null", window ? "yes" : "no",
-                     window && window->isVisible(), window ? int(window->visibility()) : -1);
-    }
-    for (QWindow *window : windows) {
-        std::fprintf(stderr, "nectarlink: --ui-check: top-level=%s visible=%d visibility=%d\n",
-                     window ? window->metaObject()->className() : "null", window && window->isVisible(),
-                     window ? int(window->visibility()) : -1);
-    }
-    std::fflush(stderr);
-}
-
 void prepare_qt_without_log()
 {
     // Windows get an alpha channel so the Mica backdrop can show through, and

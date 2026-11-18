@@ -671,9 +671,11 @@ fn main() -> ExitCode {
         bridge::native::ffi::register_qml_app_engine(engine.as_mut());
         engine.load(&QUrl::from("qrc:/qt/qml/app/nectarlink/qml/App.qml"));
     }
-    if options.ui_check {
-        bridge::native::ffi::report_ui_check_window_state();
-    }
+    // Capture visibility after QML has shown the main window. Qt hides its
+    // windows while shutting down the event loop, so checking after `exec()`
+    // would report a false failure.
+    let visible_windows =
+        if options.ui_check { bridge::native::ffi::visible_top_level_window_count() } else { 0 };
     if options.ui_check {
         std::thread::spawn(|| {
             std::thread::sleep(Duration::from_secs(UI_CHECK_SECONDS));
@@ -681,11 +683,6 @@ fn main() -> ExitCode {
         });
     }
     let code = if bridge::app::is_quit_requested() { 0 } else { app.as_mut().map_or(1, |app| app.exec()) };
-    if options.ui_check {
-        bridge::native::ffi::report_ui_check_window_state();
-    }
-    let visible_windows =
-        if options.ui_check { bridge::native::ffi::visible_top_level_window_count() } else { 0 };
 
     tracing::info!(code, "shutting down");
     // QML first (it holds references into Qt), then the core.
