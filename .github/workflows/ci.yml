@@ -6,6 +6,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      android_only:
+        description: "Run only the Android build"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -57,7 +63,7 @@ jobs:
   core:
     name: Core (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -90,7 +96,7 @@ jobs:
   core-docs-only:
     name: Core (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.code != 'true'
+    if: needs.changes.outputs.code != 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -103,7 +109,7 @@ jobs:
   desktop-checks:
     name: Windows app (x64) checks
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -131,7 +137,7 @@ jobs:
   desktop:
     name: Windows app (x64)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -171,7 +177,7 @@ jobs:
   desktop-arm64:
     name: Windows app (ARM64 cross build)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -204,7 +210,7 @@ jobs:
   desktop-macos:
     name: macOS app
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -228,7 +234,7 @@ jobs:
   desktop-macos-release:
     name: macOS app (release build)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -263,7 +269,7 @@ jobs:
   desktop-linux:
     name: Linux app (x64)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -315,7 +321,7 @@ jobs:
   desktop-linux-release:
     name: Linux app (x64, release build)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -359,7 +365,7 @@ jobs:
   linux-install:
     name: Linux packages and install.sh
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'workflow_dispatch' || inputs.android_only != true)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -410,6 +416,7 @@ jobs:
   policy:
     name: Licenses and dependencies
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || inputs.android_only != true
     steps:
       - uses: actions/checkout@v7
       - name: License headers

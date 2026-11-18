@@ -60,8 +60,7 @@ class SendActivity : ComponentActivity() {
     private fun isTrustedInternalCall(incoming: Intent): Boolean {
         val expected = internalToken(this)
         val given = incoming.getStringExtra(EXTRA_INTERNAL_TOKEN)
-        if (expected.isEmpty() || given.isNullOrEmpty()) return false
-        if (!MessageDigest.isEqual(expected.toByteArray(), given.toByteArray())) return false
+        if (!isValidInternalToken(expected, given)) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val uid = launchedFromUid
             if (uid != Process.myUid() && uid != Process.SYSTEM_UID && !isSystemUid(uid)) return false
@@ -134,6 +133,11 @@ class SendActivity : ComponentActivity() {
         private const val EXTRA_INTERNAL_TOKEN = "app.nectarlink.extra.INTERNAL_TOKEN"
         private const val PREFS_INTERNAL = "send_activity_internal"
         private const val KEY_TOKEN = "token"
+
+        internal fun isValidInternalToken(expected: String, given: String?): Boolean {
+            if (expected.isEmpty() || given.isNullOrEmpty()) return false
+            return MessageDigest.isEqual(expected.toByteArray(), given.toByteArray())
+        }
 
         internal fun <U> filterGrantedStreamUris(
             hasReadGrantFlag: Boolean,
