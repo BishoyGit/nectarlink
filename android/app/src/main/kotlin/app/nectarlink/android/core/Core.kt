@@ -814,7 +814,14 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
                     }
                 }
             }
-            is Event.DeviceAdded -> ConnectionService.start(context)
+            is Event.DeviceAdded -> {
+                ConnectionService.start(context)
+                // Pairing closes its temporary session. Nudge the persistent
+                // connection supervisor to dial the new peer immediately.
+                node?.let { pairedNode ->
+                    scope.launch { runCatching { pairedNode.networkChanged() } }
+                }
+            }
             is Event.UpdateHint -> Unit
             is Event.DeviceRemoved -> {
                 wakeTimers.remove(event.id)?.cancel()
@@ -835,7 +842,6 @@ class Core(context: Context, private val scope: CoroutineScope) : EventListener 
                 PcCompanion.disassociateForRemovedPc(context, removedName, noDevicesRemaining)
                 if (noDevicesRemaining) ConnectionService.stop(context)
             }
-            is Event.Paired -> ConnectionService.start(context)
             // Accepting pairing lapses after a while; renewed quietly while the screen stays open.
             is Event.PairingFailed -> if (event.failure == PairingFailure.Expired && pairingScreenOpen) {
                 scope.launch(discoveryPace) { if (pairingScreenOpen) acceptPairing(true) }

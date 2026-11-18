@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.nectarlink.android.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -39,6 +42,7 @@ import app.nectarlink.android.R
 import app.nectarlink.android.core.Core
 import app.nectarlink.android.core.CoreState
 import app.nectarlink.android.core.CoreStatus
+import app.nectarlink.android.core.LocalNetwork
 import app.nectarlink.android.core.PairingState
 import app.nectarlink.android.ui.pairing.PairingActions
 import app.nectarlink.android.ui.pairing.PairingScreen
@@ -80,6 +84,20 @@ internal fun TransferOnlyApp(core: Core, state: CoreState) {
             selectedDeviceId?.let { core.setStorageEnabled(it, true) }
         }
     }
+    val context = LocalContext.current
+    val localNetworkPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        core.refreshNotificationAccess()
+        if (!granted) {
+            runCatching {
+                context.startActivity(
+                    Intent(
+                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", context.packageName, null),
+                    ),
+                )
+            }
+        }
+    }
 
     BackHandler(enabled = pairingOpen || state.pairing != PairingState.Idle) {
         core.resetPairing()
@@ -115,6 +133,20 @@ internal fun TransferOnlyApp(core: Core, state: CoreState) {
             }
 
             Text(stringResource(R.string.transfer_only_devices), style = MaterialTheme.typography.titleMedium)
+            if (!state.localNetwork) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(stringResource(R.string.local_network_title), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.local_network_text), style = MaterialTheme.typography.bodyMedium)
+                        Button(onClick = { localNetworkPermission.launch(LocalNetwork.PERMISSION) }) {
+                            Text(stringResource(R.string.action_allow))
+                        }
+                    }
+                }
+            }
             if (state.devices.isEmpty()) {
                 Text(stringResource(R.string.transfer_only_pair_prompt))
             } else {

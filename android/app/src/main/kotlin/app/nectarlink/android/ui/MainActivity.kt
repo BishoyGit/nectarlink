@@ -96,7 +96,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        (application as NectarlinkApplication).core.reconnectIfOffline()
+        (application as NectarlinkApplication).core.apply {
+            refreshNotificationAccess()
+            reconnectIfOffline()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
