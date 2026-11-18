@@ -674,11 +674,12 @@ fn main() -> ExitCode {
     if options.ui_check {
         std::thread::spawn(|| {
             std::thread::sleep(Duration::from_secs(UI_CHECK_SECONDS));
-            bridge::app::request_quit();
+            bridge::native::ffi::quit_qt_app();
         });
     }
     let code = if bridge::app::is_quit_requested() { 0 } else { app.as_mut().map_or(1, |app| app.exec()) };
-    let visible_windows = if options.ui_check { bridge::native::ffi::visible_top_level_window_count() } else { 0 };
+    let visible_windows =
+        if options.ui_check { bridge::native::ffi::visible_top_level_window_count() } else { 0 };
 
     tracing::info!(code, "shutting down");
     // QML first (it holds references into Qt), then the core.

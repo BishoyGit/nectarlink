@@ -36,6 +36,8 @@ pub mod ffi {
         /// How many QML warnings and errors there were since
         /// `prepare_qt_for_ui_check`.
         fn qml_problem_count() -> i32;
+        /// Stops the Qt event loop without depending on the QML app controller.
+        fn quit_qt_app();
         fn visible_top_level_window_count() -> i32;
         fn add_app_icon_image(size: i32, rgba: &[u8]);
         fn apply_app_icon();

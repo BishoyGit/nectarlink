@@ -16,6 +16,8 @@ std::unique_ptr<QGuiApplication> create_qt_app();
 void prepare_qt(rust::Str log_dir);
 void prepare_qt_without_log();
 void prepare_qt_for_ui_check();
+// Exits the Qt event loop directly, even when QML startup failed to create the app controller.
+void quit_qt_app();
 void set_ui_scale(int32_t percent);
 int32_t qml_problem_count();
 int32_t visible_top_level_window_count();

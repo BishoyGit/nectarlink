@@ -183,6 +183,11 @@ void prepare_qt_for_ui_check()
     prepare_qt_without_log();
 }
 
+void quit_qt_app()
+{
+    QCoreApplication::quit();
+}
+
 int32_t qml_problem_count()
 {
     return qmlProblems().load();
