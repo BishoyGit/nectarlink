@@ -39,6 +39,8 @@ pub mod ffi {
         /// Stops the Qt event loop without depending on the QML app controller.
         fn quit_qt_app();
         fn visible_top_level_window_count() -> i32;
+        /// Prints QML roots and Qt top-level window visibility for `--ui-check`.
+        fn report_ui_check_window_state();
         fn add_app_icon_image(size: i32, rgba: &[u8]);
         fn apply_app_icon();
         fn keep_running_without_windows();

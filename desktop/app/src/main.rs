@@ -672,12 +672,18 @@ fn main() -> ExitCode {
         engine.load(&QUrl::from("qrc:/qt/qml/app/nectarlink/qml/App.qml"));
     }
     if options.ui_check {
+        bridge::native::ffi::report_ui_check_window_state();
+    }
+    if options.ui_check {
         std::thread::spawn(|| {
             std::thread::sleep(Duration::from_secs(UI_CHECK_SECONDS));
             bridge::native::ffi::quit_qt_app();
         });
     }
     let code = if bridge::app::is_quit_requested() { 0 } else { app.as_mut().map_or(1, |app| app.exec()) };
+    if options.ui_check {
+        bridge::native::ffi::report_ui_check_window_state();
+    }
     let visible_windows =
         if options.ui_check { bridge::native::ffi::visible_top_level_window_count() } else { 0 };
 
