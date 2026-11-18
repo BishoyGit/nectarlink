@@ -47,7 +47,7 @@ jobs:
           $stderr = Join-Path $env:RUNNER_TEMP 'nectardrop-ui-check.stderr.log'
           $exe = (Resolve-Path '.\target\release\nectarlink-desktop.exe').Path
           $arguments = '--ui-check --data-dir "' + $data + '"'
-          $process = Start-Process -FilePath $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardError $stderr
+          $process = Start-Process -FilePath $exe -ArgumentList $arguments -PassThru -RedirectStandardError $stderr
           if (-not $process.WaitForExit(30000)) {
             try { $process.Kill($true) } catch {}
             $process.WaitForExit()
