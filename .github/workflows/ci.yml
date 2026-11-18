@@ -404,9 +404,14 @@ jobs:
           cmdline-tools-version: "16111833"
           packages: "platforms;android-37.0 ndk;30.0.16248370"
       - uses: gradle/actions/setup-gradle@v6
-      - name: Unit tests and debug build
+      - name: Unit tests, lint and debug build
+        if: inputs.android_only != true
         working-directory: android
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - name: Android debug APK build
+        if: inputs.android_only == true
+        working-directory: android
+        run: ./gradlew --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v7
         with:
           name: nectarlink-android-debug
